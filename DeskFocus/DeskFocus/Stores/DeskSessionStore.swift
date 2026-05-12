@@ -1,0 +1,401 @@
+//
+//  DeskSessionStore.swift
+//  DeskFocus
+//
+
+import Combine
+import Foundation
+import Observation
+
+@Observable @MainActor
+final class DeskSessionStore {
+
+    var posture: Posture
+    var running: Bool {
+        didSet {
+            if !running {
+                lastReconcileAt = nil
+            }
+        }
+    }
+
+    var sessionPausedMs: Int
+    var runStartedAt: Date?
+    var sessionDisplayMode: SessionDisplayMode
+    var countdownDurationMs: Int
+    var standingGoalMs: Int
+    var factIndex: Int
+
+    var weeklySittingMs: Int
+    var weekKey: String
+
+    /// Fired after each **continuous** standing segment accumulates `STANDING_CONFETTI_INTERVAL_MS` while the desk timer is running.
+    var onStandingConfettiMilestone: (() -> Void)?
+
+    private(set) var tickNow: Date = .init()
+
+    var sessionElapsedMs: Int {
+        computeSessionElapsed(at: tickNow)
+    }
+
+    private var lastReconcileAt: Date?
+
+    private var ticker: AnyCancellable?
+
+    private let storage: DeskStorage
+    private let dailyLogStore: DailyLogStore
+    private let defaults: UserDefaults
+    private let notificationScheduler: NotificationScheduler
+
+    private static let notificationsPromptKey = "deskfocus.notifications.prompted"
+
+    /// Progress toward the next standing confetti milestone within the current standing stretch (resets when switching to sitting).
+    private var standingConfettiAccumMs: Int = 0
+
+    init(
+        storage: DeskStorage,
+        dailyLogStore: DailyLogStore,
+        defaults: UserDefaults = .standard,
+        notificationScheduler: NotificationScheduler = .shared
+    ) {
+        self.storage = storage
+        self.dailyLogStore = dailyLogStore
+        self.defaults = defaults
+        self.notificationScheduler = notificationScheduler
+
+        let snapshot = storage.load()
+        posture = snapshot.posture
+        running = snapshot.running
+        sessionPausedMs = snapshot.sessionPausedMs
+        runStartedAt = snapshot.runStartedAt
+        sessionDisplayMode = snapshot.sessionDisplayMode
+        countdownDurationMs = clampCountdownMs(snapshot.countdownDurationMs)
+        standingGoalMs = clampStandingGoalMs(snapshot.standingGoalMs)
+        factIndex = snapshot.factIndex
+        weeklySittingMs = snapshot.weeklySittingMs
+        weekKey = snapshot.weekKey
+
+        if running {
+            lastReconcileAt = runStartedAt ?? Date()
+            startTickerIfNeeded()
+        }
+    }
+
+    // MARK: - Actions
+
+    func play() {
+        guard !running else { return }
+
+        if defaults.bool(forKey: Self.notificationsPromptKey) {
+            beginPlayWithoutPrompt()
+            return
+        }
+
+        Task { @MainActor in
+            await notificationScheduler.requestPermission()
+            self.defaults.set(true, forKey: Self.notificationsPromptKey)
+            self.beginPlayWithoutPrompt()
+        }
+    }
+
+    func pause() {
+        pauseAndPersist(at: Date())
+    }
+
+    func clearSession() {
+        guard !running else { return }
+        notificationScheduler.cancelAllDeskAlerts()
+        sessionPausedMs = 0
+        runStartedAt = nil
+        standingConfettiAccumMs = 0
+        persist()
+    }
+
+    func switchPosture() {
+        let wasRunning = running
+        if wasRunning {
+            reconcile(at: Date())
+        }
+
+        posture = posture == .sitting ? .standing : .sitting
+
+        if posture == .sitting {
+            standingConfettiAccumMs = 0
+        }
+
+        sessionPausedMs = 0
+        if wasRunning {
+            let now = Date()
+            runStartedAt = now
+            lastReconcileAt = now
+            tickNow = now
+            refreshDeskNotifications(reference: now)
+        } else {
+            runStartedAt = nil
+        }
+
+        persist()
+    }
+
+    func toggleSessionDisplayMode() {
+        sessionDisplayMode = sessionDisplayMode == .stopwatch ? .countdown : .stopwatch
+        refreshDeskNotifications(reference: Date())
+        persist()
+    }
+
+    func setCountdownDurationMs(_ ms: Int) {
+        countdownDurationMs = clampCountdownMs(ms)
+        refreshDeskNotifications(reference: Date())
+        persist()
+    }
+
+    func adjustStandingGoalMs(_ delta: Int) {
+        standingGoalMs = clampStandingGoalMs(standingGoalMs + delta)
+        persist()
+    }
+
+    /// Cycles wellness fact index (persisted in session); `factCount` is typically `deskWellnessFacts.count`.
+    func advanceFact(by delta: Int, factCount: Int) {
+        guard factCount > 0 else { return }
+        factIndex = ((factIndex + delta) % factCount + factCount) % factCount
+        persist()
+    }
+
+    func completeCountdownSession() {
+        guard sessionDisplayMode == .countdown else { return }
+        if running {
+            pauseAndPersist(at: Date())
+        }
+        sessionPausedMs = 0
+        persist()
+    }
+
+    func clearAllUserData() {
+        if running {
+            reconcile(at: Date())
+        }
+
+        ticker?.cancel()
+        ticker = nil
+
+        notificationScheduler.cancelAllDeskAlerts()
+
+        dailyLogStore.deleteAllLogs()
+
+        defaults.removeObject(forKey: SessionState.storageKey)
+        defaults.removeObject(forKey: Self.notificationsPromptKey)
+        defaults.removeObject(forKey: "desktimer:last-prune")
+
+        standingConfettiAccumMs = 0
+
+        applySavedSnapshot(SessionState.default)
+        persist()
+    }
+
+    func handleForeground() {
+        if running {
+            reconcile(at: Date())
+            refreshDeskNotifications(reference: Date())
+        }
+        tickNow = Date()
+    }
+
+    // MARK: - Reconcile
+
+    private func reconcile(at now: Date) {
+        tickNow = now
+
+        guard running, let watermark = lastReconcileAt else {
+            return
+        }
+
+        if watermark < now {
+            if posture == .standing {
+                feedStandingConfetti(deltaMs: Int((now.timeIntervalSince(watermark) * 1000.0).rounded()))
+            }
+            dailyLogStore.addPostureDelta(from: watermark, to: now, posture: posture)
+            addWeeklySittingMs(from: watermark, to: now)
+            lastReconcileAt = now
+        }
+
+        if sessionDisplayMode == .countdown, computeSessionElapsed(at: now) >= countdownDurationMs {
+            finalizeCountdownCompletion(at: now)
+            return
+        }
+
+        persist()
+    }
+
+    private func beginPlayWithoutPrompt() {
+        guard !running else { return }
+
+        running = true
+        let now = Date()
+        runStartedAt = now
+        lastReconcileAt = now
+        tickNow = now
+
+        startTickerIfNeeded()
+        refreshDeskNotifications(reference: now)
+        persist()
+    }
+
+    private func pauseAndPersist(at anchor: Date) {
+        guard running else { return }
+
+        reconcile(at: anchor)
+
+        ticker?.cancel()
+        ticker = nil
+
+        guard running else {
+            persist()
+            return
+        }
+
+        guard let segmentStart = runStartedAt else {
+            running = false
+            notificationScheduler.cancelAllDeskAlerts()
+            persist()
+            return
+        }
+
+        sessionPausedMs += Int((anchor.timeIntervalSince(segmentStart) * 1000.0).rounded())
+        running = false
+        runStartedAt = nil
+
+        notificationScheduler.cancelAllDeskAlerts()
+        persist()
+    }
+
+    private func finalizeCountdownCompletion(at now: Date) {
+        ticker?.cancel()
+        ticker = nil
+
+        running = false
+        runStartedAt = nil
+        sessionPausedMs = 0
+
+        notificationScheduler.cancelAllDeskAlerts()
+
+        tickNow = now
+
+        persist()
+    }
+
+    // MARK: - Ticker
+
+    private func startTickerIfNeeded() {
+        guard ticker == nil else { return }
+
+        ticker = Timer.publish(every: 0.25, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] date in
+                guard let self else { return }
+                self.reconcile(at: date)
+            }
+    }
+
+    // MARK: - Weekly sitting
+
+    private func addWeeklySittingMs(from start: Date, to end: Date) {
+        guard posture == .sitting, start < end else { return }
+
+        var cursor = start
+        while cursor < end {
+            let sliceKey = isoWeekKey(for: cursor)
+            let boundary = isoWeekExclusiveEnd(containing: cursor)
+            let segmentEnd = min(boundary, end)
+
+            if sliceKey != weekKey {
+                weekKey = sliceKey
+                weeklySittingMs = 0
+            }
+
+            weeklySittingMs += Int((segmentEnd.timeIntervalSince(cursor) * 1000.0).rounded())
+            cursor = segmentEnd
+        }
+    }
+
+    private func computeSessionElapsed(at reference: Date) -> Int {
+        guard running, let segmentStart = runStartedAt else {
+            return sessionPausedMs
+        }
+        let delta = reference.timeIntervalSince(segmentStart)
+        return sessionPausedMs + Int((delta * 1000.0).rounded())
+    }
+
+    // MARK: - Persistence
+
+    private func currentSnapshot() -> SessionState {
+        SessionState(
+            posture: posture,
+            running: running,
+            sessionPausedMs: sessionPausedMs,
+            runStartedAt: runStartedAt,
+            weeklySittingMs: weeklySittingMs,
+            weekKey: weekKey,
+            factIndex: factIndex,
+            sessionDisplayMode: sessionDisplayMode,
+            countdownDurationMs: countdownDurationMs,
+            standingGoalMs: standingGoalMs
+        )
+    }
+
+    private func applySavedSnapshot(_ state: SessionState) {
+        posture = state.posture
+        running = state.running
+        sessionPausedMs = state.sessionPausedMs
+        runStartedAt = state.runStartedAt
+        sessionDisplayMode = state.sessionDisplayMode
+        countdownDurationMs = clampCountdownMs(state.countdownDurationMs)
+        standingGoalMs = clampStandingGoalMs(state.standingGoalMs)
+        factIndex = state.factIndex
+        weeklySittingMs = state.weeklySittingMs
+        weekKey = state.weekKey
+        standingConfettiAccumMs = 0
+        ticker?.cancel()
+        ticker = nil
+        lastReconcileAt = running ? state.runStartedAt ?? Date() : nil
+        if running {
+            startTickerIfNeeded()
+        }
+        tickNow = Date()
+    }
+
+    private func persist() {
+        storage.save(currentSnapshot())
+    }
+
+    private func refreshDeskNotifications(reference anchor: Date) {
+        notificationScheduler.cancelAllDeskAlerts()
+
+        guard running else { return }
+
+        let hourNow = Calendar.current.component(.hour, from: anchor)
+
+        if posture == .sitting {
+            notificationScheduler.scheduleSittingHourAlerts(startedAt: anchor, currentHour: hourNow)
+        }
+
+        if sessionDisplayMode == .countdown {
+            let remainingMs = countdownDurationMs - computeSessionElapsed(at: anchor)
+            guard remainingMs > 250 else {
+                finalizeCountdownCompletion(at: anchor)
+                return
+            }
+
+            let fireDate = anchor.addingTimeInterval(Double(remainingMs) / 1000)
+            notificationScheduler.scheduleCountdownComplete(at: fireDate, posture: posture)
+        }
+    }
+
+    private func feedStandingConfetti(deltaMs: Int) {
+        guard deltaMs > 0 else { return }
+        standingConfettiAccumMs += deltaMs
+        while standingConfettiAccumMs >= STANDING_CONFETTI_INTERVAL_MS {
+            standingConfettiAccumMs -= STANDING_CONFETTI_INTERVAL_MS
+            onStandingConfettiMilestone?()
+        }
+    }
+}
