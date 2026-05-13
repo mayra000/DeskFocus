@@ -202,6 +202,7 @@ private struct LiveActivityCompactTimer: View {
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
