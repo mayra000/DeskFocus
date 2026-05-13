@@ -11,18 +11,6 @@ import UIKit
 struct DeskView: View {
     @Environment(DeskSessionStore.self) private var deskStore
 
-    private var facts: [String] { deskWellnessFacts }
-
-    private var safeFactIndex: Int {
-        guard !facts.isEmpty else { return 0 }
-        return min(max(deskStore.factIndex, 0), facts.count - 1)
-    }
-
-    private var currentFact: String {
-        guard !facts.isEmpty else { return "" }
-        return facts[safeFactIndex]
-    }
-
     var body: some View {
         deskScrollStack
             .preferredColorScheme(.dark)
@@ -49,18 +37,20 @@ struct DeskView: View {
 
                     StandingWeekBadgesView()
                     standingGoalSection
-                    factSection
+                    // Wellness facts carousel hidden for a cleaner desk UI (see `deskWellnessFacts` / FactCarouselView if restoring).
                     weeklySittingSection
 
                     WeeklySummaryView()
                     ActivityLogView()
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     /// 0 → empty deeper fill at bottom; 1 → full bleed deep (aligned with countdown draining / elapsed progress).
@@ -436,57 +426,6 @@ struct DeskView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Increase standing goal")
             }
-        }
-    }
-
-    // MARK: - Fact
-
-    private var factSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(currentFact)
-                .font(.footnote)
-                .foregroundStyle(DeskTheme.muted)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack {
-                Button {
-                    UIPasteboard.general.string = currentFact
-                } label: {
-                    Image(systemName: "link")
-                        .font(.subheadline.weight(.medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(DeskTheme.muted)
-                .disabled(currentFact.isEmpty)
-                .accessibilityLabel("Copy wellness note")
-
-                Spacer()
-
-                Button {
-                    deskStore.advanceFact(by: -1, factCount: facts.count)
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.subheadline.weight(.medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(DeskTheme.muted)
-                .disabled(facts.isEmpty)
-
-                Button {
-                    deskStore.advanceFact(by: 1, factCount: facts.count)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.subheadline.weight(.medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(DeskTheme.muted)
-                .disabled(facts.isEmpty)
-            }
-        }
-        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
-            guard !facts.isEmpty else { return }
-            deskStore.advanceFact(by: 1, factCount: facts.count)
         }
     }
 

@@ -57,23 +57,28 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                appHeader
+            ZStack {
+                // TabView page layout often leaves an uncovered strip above the home indicator; paint behind it explicitly.
+                chromeBackdrop
+                    .ignoresSafeArea(edges: [.horizontal, .bottom])
+                    .allowsHitTesting(false)
 
-                TabView(selection: selectedModeBinding) {
-                    DeskView()
-                        .tag(DeskFocusAppMode.desk)
-                    PomodoroView()
-                        .tag(DeskFocusAppMode.pomodoro)
+                VStack(spacing: 0) {
+                    appHeader
+
+                    TabView(selection: selectedModeBinding) {
+                        DeskView()
+                            .tag(DeskFocusAppMode.desk)
+                        PomodoroView()
+                            .tag(DeskFocusAppMode.pomodoro)
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.clear)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .background {
-                chromeBackdrop
-                    .ignoresSafeArea(edges: .bottom)
-            }
             .animation(.easeInOut(duration: 0.32), value: modeRaw)
             .animation(.easeInOut(duration: 0.35), value: pomodoroStore.phase)
             .animation(.easeInOut(duration: 0.45), value: deskStore.posture)
@@ -83,6 +88,7 @@ struct ContentView: View {
                 }
             }
         }
+        .ignoresSafeArea(edges: .bottom)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 deskStore.handleForeground()

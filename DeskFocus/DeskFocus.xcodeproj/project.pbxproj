@@ -6,14 +6,75 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E85F10122FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E85F10022FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E85F10132FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E85F10012FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E85F10152FB3C8F30016F9C3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D65128C72FB3C8F30016F9C3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E85F10062FB3C8F30016F9C3;
+			remoteInfo = DeskFocusLiveActivity;
+		};
+		E85F10192FB3C8F30016F9C3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D65128C72FB3C8F30016F9C3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E85F10052FB3C8F30016F9C3;
+			remoteInfo = DeskFocusLiveSupport;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E85F100E2FB3C8F30016F9C3 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				E85F10122FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		D65128CF2FB3C8F30016F9C3 /* DeskFocus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeskFocus.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E85F10012FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = DeskFocusLiveSupport.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		E85F10022FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DeskFocusLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E85F10262FB3C8F30016F9C3 /* Exceptions for "DeskFocusLiveActivity" folder in "DeskFocusLiveActivity" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E85F10062FB3C8F30016F9C3 /* DeskFocusLiveActivity */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D65128D12FB3C8F30016F9C3 /* DeskFocus */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DeskFocus;
+			sourceTree = "<group>";
+		};
+		E85F10032FB3C8F30016F9C3 /* DeskFocusLiveSupport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DeskFocusLiveSupport;
+			sourceTree = "<group>";
+		};
+		E85F10042FB3C8F30016F9C3 /* DeskFocusLiveActivity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E85F10262FB3C8F30016F9C3 /* Exceptions for "DeskFocusLiveActivity" folder in "DeskFocusLiveActivity" target */,
+			);
+			path = DeskFocusLiveActivity;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -26,6 +87,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E85F10072FB3C8F30016F9C3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E85F10082FB3C8F30016F9C3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E85F10132FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -33,6 +109,8 @@
 			isa = PBXGroup;
 			children = (
 				D65128D12FB3C8F30016F9C3 /* DeskFocus */,
+				E85F10032FB3C8F30016F9C3 /* DeskFocusLiveSupport */,
+				E85F10042FB3C8F30016F9C3 /* DeskFocusLiveActivity */,
 				D65128D02FB3C8F30016F9C3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +119,8 @@
 			isa = PBXGroup;
 			children = (
 				D65128CF2FB3C8F30016F9C3 /* DeskFocus.app */,
+				E85F10012FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework */,
+				E85F10022FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,10 +135,12 @@
 				D65128CB2FB3C8F30016F9C3 /* Sources */,
 				D65128CC2FB3C8F30016F9C3 /* Frameworks */,
 				D65128CD2FB3C8F30016F9C3 /* Resources */,
+				E85F100E2FB3C8F30016F9C3 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				E85F10172FB3C8F30016F9C3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				D65128D12FB3C8F30016F9C3 /* DeskFocus */,
@@ -69,6 +151,51 @@
 			productName = DeskFocus;
 			productReference = D65128CF2FB3C8F30016F9C3 /* DeskFocus.app */;
 			productType = "com.apple.product-type.application";
+		};
+		E85F10052FB3C8F30016F9C3 /* DeskFocusLiveSupport */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E85F101C2FB3C8F30016F9C3 /* Build configuration list for PBXNativeTarget "DeskFocusLiveSupport" */;
+			buildPhases = (
+				E85F10092FB3C8F30016F9C3 /* Sources */,
+				E85F10072FB3C8F30016F9C3 /* Frameworks */,
+				E85F100A2FB3C8F30016F9C3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E85F10032FB3C8F30016F9C3 /* DeskFocusLiveSupport */,
+			);
+			name = DeskFocusLiveSupport;
+			packageProductDependencies = (
+			);
+			productName = DeskFocusLiveSupport;
+			productReference = E85F10012FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		E85F10062FB3C8F30016F9C3 /* DeskFocusLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E85F101D2FB3C8F30016F9C3 /* Build configuration list for PBXNativeTarget "DeskFocusLiveActivity" */;
+			buildPhases = (
+				E85F100B2FB3C8F30016F9C3 /* Sources */,
+				E85F10082FB3C8F30016F9C3 /* Frameworks */,
+				E85F100C2FB3C8F30016F9C3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E85F10182FB3C8F30016F9C3 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E85F10042FB3C8F30016F9C3 /* DeskFocusLiveActivity */,
+			);
+			name = DeskFocusLiveActivity;
+			packageProductDependencies = (
+			);
+			productName = DeskFocusLiveActivity;
+			productReference = E85F10022FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -81,6 +208,12 @@
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					D65128CE2FB3C8F30016F9C3 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					E85F10052FB3C8F30016F9C3 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					E85F10062FB3C8F30016F9C3 = {
 						CreatedOnToolsVersion = 26.3;
 					};
 				};
@@ -100,12 +233,28 @@
 			projectRoot = "";
 			targets = (
 				D65128CE2FB3C8F30016F9C3 /* DeskFocus */,
+				E85F10052FB3C8F30016F9C3 /* DeskFocusLiveSupport */,
+				E85F10062FB3C8F30016F9C3 /* DeskFocusLiveActivity */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		D65128CD2FB3C8F30016F9C3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E85F100A2FB3C8F30016F9C3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E85F100C2FB3C8F30016F9C3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +271,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E85F10092FB3C8F30016F9C3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E85F100B2FB3C8F30016F9C3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E85F10172FB3C8F30016F9C3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E85F10062FB3C8F30016F9C3 /* DeskFocusLiveActivity */;
+			targetProxy = E85F10152FB3C8F30016F9C3 /* PBXContainerItemProxy */;
+		};
+		E85F10182FB3C8F30016F9C3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E85F10052FB3C8F30016F9C3 /* DeskFocusLiveSupport */;
+			targetProxy = E85F10192FB3C8F30016F9C3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D65128D82FB3C8F50016F9C3 /* Debug */ = {
@@ -250,12 +426,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CD85A9F2K3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -282,12 +460,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CD85A9F2K3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -303,6 +483,134 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E85F10222FB3C8F30016F9C3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = CD85A9F2K3;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mayra.DeskFocus.LiveSupport;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		E85F10232FB3C8F30016F9C3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = CD85A9F2K3;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mayra.DeskFocus.LiveSupport;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		E85F10242FB3C8F30016F9C3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CD85A9F2K3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeskFocusLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mayra.DeskFocus.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E85F10252FB3C8F30016F9C3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CD85A9F2K3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeskFocusLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mayra.DeskFocus.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -327,6 +635,24 @@
 			buildConfigurations = (
 				D65128DB2FB3C8F50016F9C3 /* Debug */,
 				D65128DC2FB3C8F50016F9C3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E85F101C2FB3C8F30016F9C3 /* Build configuration list for PBXNativeTarget "DeskFocusLiveSupport" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E85F10222FB3C8F30016F9C3 /* Debug */,
+				E85F10232FB3C8F30016F9C3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E85F101D2FB3C8F30016F9C3 /* Build configuration list for PBXNativeTarget "DeskFocusLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E85F10242FB3C8F30016F9C3 /* Debug */,
+				E85F10252FB3C8F30016F9C3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

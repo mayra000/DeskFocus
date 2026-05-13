@@ -84,6 +84,7 @@ struct PomodoroView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(edges: .bottom)
         .animation(.easeInOut(duration: 0.35), value: store.phase)
         .animation(.easeOut(duration: 0.22), value: keyboardOverlapHeight)
         .onDisappear {
