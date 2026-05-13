@@ -5,6 +5,7 @@
 //  Created by Mayra Sanchez on 5/12/26.
 //
 
+import DeskFocusLiveSupport
 import SwiftData
 import SwiftUI
 import UIKit
@@ -38,11 +39,14 @@ private final class DeskFocusSessionBootstrap {
     let confettiDriver = ConfettiBurstDriver()
     let deskStore: DeskSessionStore
     let pomodoroStore: PomodoroStore
+    let liveActivity = DeskSessionLiveActivityManager()
 
     init(modelContext: ModelContext) {
         let dailyLog = DailyLogStore(modelContext: modelContext)
         deskStore = DeskSessionStore(storage: LocalDeskStorage(), dailyLogStore: dailyLog)
         pomodoroStore = PomodoroStore(modelContext: modelContext)
+
+        deskStore.liveActivityManager = liveActivity
 
         deskStore.onStandingConfettiMilestone = { [weak self] in
             self?.confettiDriver.fire(.standing)
@@ -50,11 +54,28 @@ private final class DeskFocusSessionBootstrap {
         pomodoroStore.onPomodoroComplete = { [weak self] in
             self?.confettiDriver.fire(.pomodoro)
         }
+
+        applyPendingLiveActivityCommands()
+    }
+
+    /// Widget / Live Activity intents run in the extension and enqueue commands in the shared app group.
+    func applyPendingLiveActivityCommands() {
+        guard let command = DeskLiveActivityCommandBridge.dequeuePendingCommand() else { return }
+        switch command {
+        case .togglePauseResume:
+            deskStore.applyLiveActivityToggle()
+        case .clearSession:
+            if deskStore.running {
+                deskStore.pause()
+            }
+            deskStore.clearSession()
+        }
     }
 }
 
 private struct DeskFocusRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var bootstrap: DeskFocusSessionBootstrap?
 
     var body: some View {
@@ -74,6 +95,20 @@ private struct DeskFocusRootView: View {
                         ConfettiView(driver: bootstrap.confettiDriver)
                             .allowsHitTesting(false)
                             .ignoresSafeArea()
+                    }
+                    .onAppear {
+                        if scenePhase == .active {
+                            bootstrap.applyPendingLiveActivityCommands()
+                            bootstrap.liveActivity.noteSceneBecameActive(syncing: bootstrap.deskStore)
+                        }
+                    }
+                    .onChange(of: scenePhase) { _, phase in
+                        if phase == .active {
+                            bootstrap.applyPendingLiveActivityCommands()
+                            bootstrap.liveActivity.noteSceneBecameActive(syncing: bootstrap.deskStore)
+                        } else if phase == .inactive || phase == .background {
+                            bootstrap.liveActivity.noteSceneBecameInactive()
+                        }
                     }
                 } else {
                     ProgressView()

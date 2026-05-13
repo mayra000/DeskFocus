@@ -29,6 +29,9 @@ final class DeskSessionStore {
     var weeklySittingMs: Int
     var weekKey: String
 
+    /// Drives Live Activity visibility across pause; cleared on explicit clear / countdown end.
+    var deskLiveActivityVisible: Bool
+
     /// Fired after each **continuous** standing segment accumulates `STANDING_CONFETTI_INTERVAL_MS` while the desk timer is running.
     var onStandingConfettiMilestone: (() -> Void)?
 
@@ -46,6 +49,9 @@ final class DeskSessionStore {
     private let dailyLogStore: DailyLogStore
     private let defaults: UserDefaults
     private let notificationScheduler: NotificationScheduler
+
+    /// Live Activity / ActivityKit sync (optional).
+    weak var liveActivityManager: DeskSessionLiveActivityManager?
 
     private static let notificationsPromptKey = "deskfocus.notifications.prompted"
 
@@ -74,6 +80,7 @@ final class DeskSessionStore {
         factIndex = snapshot.factIndex
         weeklySittingMs = snapshot.weeklySittingMs
         weekKey = snapshot.weekKey
+        deskLiveActivityVisible = snapshot.deskLiveActivityVisible
 
         if running {
             lastReconcileAt = runStartedAt ?? Date()
@@ -102,12 +109,28 @@ final class DeskSessionStore {
         pauseAndPersist(at: Date())
     }
 
+    /// Resume/toggle target for Live Activity: resumes without the first-play notification prompt flow.
+    func resumeFromLiveActivity() {
+        guard !running else { return }
+        beginPlayWithoutPrompt()
+    }
+
+    /// Pause if running, otherwise resume (Live Activity play/pause control).
+    func applyLiveActivityToggle() {
+        if running {
+            pause()
+        } else {
+            resumeFromLiveActivity()
+        }
+    }
+
     func clearSession() {
         guard !running else { return }
         notificationScheduler.cancelAllDeskAlerts()
         sessionPausedMs = 0
         runStartedAt = nil
         standingConfettiAccumMs = 0
+        deskLiveActivityVisible = false
         persist()
     }
 
@@ -167,6 +190,7 @@ final class DeskSessionStore {
             pauseAndPersist(at: Date())
         }
         sessionPausedMs = 0
+        deskLiveActivityVisible = false
         persist()
     }
 
@@ -237,6 +261,7 @@ final class DeskSessionStore {
 
         startTickerIfNeeded()
         refreshDeskNotifications(reference: now)
+        deskLiveActivityVisible = true
         persist()
     }
 
@@ -255,6 +280,7 @@ final class DeskSessionStore {
 
         guard let segmentStart = runStartedAt else {
             running = false
+            deskLiveActivityVisible = false
             notificationScheduler.cancelAllDeskAlerts()
             persist()
             return
@@ -275,6 +301,7 @@ final class DeskSessionStore {
         running = false
         runStartedAt = nil
         sessionPausedMs = 0
+        deskLiveActivityVisible = false
 
         notificationScheduler.cancelAllDeskAlerts()
 
@@ -338,7 +365,8 @@ final class DeskSessionStore {
             factIndex: factIndex,
             sessionDisplayMode: sessionDisplayMode,
             countdownDurationMs: countdownDurationMs,
-            standingGoalMs: standingGoalMs
+            standingGoalMs: standingGoalMs,
+            deskLiveActivityVisible: deskLiveActivityVisible
         )
     }
 
@@ -353,6 +381,7 @@ final class DeskSessionStore {
         factIndex = state.factIndex
         weeklySittingMs = state.weeklySittingMs
         weekKey = state.weekKey
+        deskLiveActivityVisible = state.deskLiveActivityVisible
         standingConfettiAccumMs = 0
         ticker?.cancel()
         ticker = nil
@@ -365,6 +394,7 @@ final class DeskSessionStore {
 
     private func persist() {
         storage.save(currentSnapshot())
+        liveActivityManager?.deskSessionStoreDidPersist(self)
     }
 
     private func refreshDeskNotifications(reference anchor: Date) {

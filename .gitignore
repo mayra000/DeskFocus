@@ -1,0 +1,11 @@
+# Local xcodebuild -derivedDataPath (agent / CI scratch builds)
+.derivedData/
+**/.derivedData/
+
+# Xcode / SwiftPM
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+
+# macOS
+.DS_Store

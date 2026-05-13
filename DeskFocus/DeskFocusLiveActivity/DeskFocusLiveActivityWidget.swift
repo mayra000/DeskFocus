@@ -17,22 +17,19 @@ struct DeskFocusLiveActivityWidget: Widget {
                 .activitySystemActionForegroundColor(Color.white)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    EmptyView()
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    EmptyView()
-                }
                 DynamicIslandExpandedRegion(.bottom) {
-                    EmptyView()
+                    LiveActivityIslandExpandedSummary(state: context.state)
                 }
             } compactLeading: {
                 Image(systemName: "stopwatch")
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
+                    .fixedSize(horizontal: true, vertical: false)
             } compactTrailing: {
                 LiveActivityCompactTimer(state: context.state)
             } minimal: {
                 Image(systemName: "stopwatch")
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
             }
         }
@@ -41,71 +38,93 @@ struct DeskFocusLiveActivityWidget: Widget {
 
 // MARK: - Lock screen
 
+// Button column: two 44pt circles + 14pt gap = 102pt. Fixed at 110pt.
+private let kButtonColumnWidth: CGFloat = 110
+private let kTimerFontSize: CGFloat = 26
+
 private struct DeskLiveActivityLockScreenView: View {
     let state: DeskSessionActivityAttributes.ContentState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
-                Image(systemName: "stopwatch")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
 
-                Text("DESKFOCUS")
-                    .font(.subheadline.weight(.bold))
-                    .tracking(0.6)
-                    .foregroundStyle(.white)
-
+            // Top row: app name + posture badge
+            HStack(spacing: 0) {
+                HStack(spacing: 10) {
+                    Image(systemName: "stopwatch")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text("DESKFOCUS")
+                        .font(.subheadline.weight(.bold))
+                        .tracking(0.6)
+                        .foregroundStyle(.white)
+                }
                 Spacer(minLength: 8)
-
-                Text("NOW: \(statusPostureLabel)")
+                (Text("NOW: ")
+                    .foregroundStyle(Color.white.opacity(0.58))
+                 + Text(statusPostureLabel)
+                    .foregroundStyle(Color.white))
                     .font(.caption.weight(.bold))
                     .tracking(0.4)
                     .textCase(.uppercase)
-                    .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.14))
-                    )
+                    .background(Capsule(style: .continuous).fill(Color.white.opacity(0.14)))
+                    .fixedSize(horizontal: true, vertical: false)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(alignment: .center, spacing: 14) {
-                Button(intent: PauseDeskSessionIntent()) {
-                    Image(systemName: "pause.fill")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            Circle()
-                                .strokeBorder(Color.white.opacity(0.85), lineWidth: 1.5)
-                        )
+            // Bottom row: fixed-width button column | timer takes the rest
+            HStack(alignment: .center, spacing: 16) {
+
+                // Left: pause + clear — hard fixed width, never grows
+                HStack(alignment: .center, spacing: 14) {
+                    Button(intent: PauseDeskSessionIntent()) {
+                        Image(systemName: state.isRunning ? "pause.fill" : "play.fill")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .strokeBorder(Color.white.opacity(0.85), lineWidth: 1.5)
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(intent: ClearDeskSessionIntent()) {
+                        Image(systemName: "xmark")
+                            .font(.body.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Color.white.opacity(0.18)))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .frame(width: kButtonColumnWidth, alignment: .leading)
 
-                Button(intent: ClearDeskSessionIntent()) {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(Color.white.opacity(0.18)))
-                }
-                .buttonStyle(.plain)
-
-                Spacer(minLength: 8)
-
-                HStack(alignment: .center, spacing: 10) {
-                    Text(timerCaption)
-                        .font(.caption2.weight(.bold))
-                        .tracking(0.5)
-                        .foregroundStyle(Color.white.opacity(0.85))
-                        .textCase(.uppercase)
-                        .fixedSize(horizontal: true, vertical: false)
-
+                // Right: digits pinned to trailing edge; "TIMER" label sits
+                // immediately to their left via a ZStack overlay — this way the
+                // digits never move regardless of label width.
+                ZStack(alignment: .trailing) {
                     LiveActivityLargeTimer(state: state)
+
+                    HStack(alignment: .center, spacing: 0) {
+                        Text(timerCaption)
+                            .font(.system(size: 12, weight: .bold))
+                            .tracking(0.5)
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .textCase(.uppercase)
+                            .fixedSize()
+                            .padding(.trailing, 4)  // gap between label and digits (smaller than before)
+
+                        LiveActivityLargeTimer(state: state)
+                            .hidden()               // reserve digit width, keep label positioned
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 52)
         }
         .padding(24)
     }
@@ -123,20 +142,17 @@ private struct DeskLiveActivityLockScreenView: View {
 
 private extension DeskSessionActivityAttributes.ContentState {
 
-    /// Wall-clock instant where cumulative desk elapsed ms matches `sessionPausedMs` (stopwatch / countdown elapsed baseline).
     var liveActivityLogicalSessionStart: Date? {
         guard isRunning, let seg = segmentStartedAt else { return nil }
         return seg.addingTimeInterval(-TimeInterval(sessionPausedMs) / 1000)
     }
 
-    /// Range for system-driven **count-up** timer (`countsDown: false`).
     func stopwatchTimerRange() -> ClosedRange<Date>? {
         guard displayModeRaw != "countdown" else { return nil }
         guard let logical = liveActivityLogicalSessionStart else { return nil }
         return logical ... Date.distantFuture
     }
 
-    /// Range for system-driven **countdown** (`countsDown: true`).
     func countdownTimerRange() -> ClosedRange<Date>? {
         guard displayModeRaw == "countdown" else { return nil }
         guard let seg = segmentStartedAt, isRunning else { return nil }
@@ -164,11 +180,12 @@ private struct LiveActivityLargeTimer: View {
                 Text(LiveActivityTimerFormatting.displayString(state: state, now: Date()))
             }
         }
-        .font(.system(size: 28, weight: .bold, design: .rounded))
+        .font(.system(size: kTimerFontSize, weight: .bold, design: .rounded))
         .monospacedDigit()
         .foregroundStyle(.white)
-        .minimumScaleFactor(0.6)
+        .multilineTextAlignment(.trailing)
         .lineLimit(1)
+        .minimumScaleFactor(0.7)
     }
 }
 
@@ -176,27 +193,57 @@ private struct LiveActivityCompactTimer: View {
     let state: DeskSessionActivityAttributes.ContentState
 
     var body: some View {
-        Group {
-            if state.displayModeRaw == "countdown" {
-                if let range = state.countdownTimerRange() {
-                    Text(timerInterval: range, countsDown: true, showsHours: true)
-                } else {
-                    Text("00:00:00")
-                }
-            } else if let range = state.stopwatchTimerRange() {
-                Text(timerInterval: range, countsDown: false, showsHours: true)
-            } else {
-                Text(LiveActivityTimerFormatting.displayString(state: state, now: Date()))
-            }
+        // Avoid Text(timerInterval:) in compact — it often expands the island to full width.
+        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+            Text(LiveActivityTimerFormatting.compactDisplayString(state: state, now: timeline.date))
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
-        .font(.caption2.weight(.bold))
-        .monospacedDigit()
-        .foregroundStyle(.white)
-        .lineLimit(1)
+    }
+}
+
+/// Single short line for expanded island; keeps regions from driving extra horizontal chrome.
+private struct LiveActivityIslandExpandedSummary: View {
+    let state: DeskSessionActivityAttributes.ContentState
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+            HStack(spacing: 8) {
+                Image(systemName: "stopwatch")
+                    .font(.caption.weight(.semibold))
+                Text(LiveActivityTimerFormatting.displayString(state: state, now: timeline.date))
+                    .font(.caption.weight(.bold))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(.white)
+            .fixedSize(horizontal: true, vertical: false)
+        }
     }
 }
 
 private enum LiveActivityTimerFormatting {
+    /// Shorter than lock-screen time (`mm:ss` or `h:mm:ss`) so the compact pill stays narrow.
+    static func compactDisplayString(state: DeskSessionActivityAttributes.ContentState, now: Date) -> String {
+        let displayMs: Int
+        if state.displayModeRaw == "countdown" {
+            let elapsed = elapsedMs(state: state, now: now)
+            displayMs = max(0, state.countdownDurationMs - elapsed)
+        } else {
+            displayMs = max(0, elapsedMs(state: state, now: now))
+        }
+        let sec = displayMs / 1_000
+        let h = sec / 3_600
+        let m = (sec % 3_600) / 60
+        let s = sec % 60
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
+        return String(format: "%02d:%02d", m, s)
+    }
+
     static func displayString(state: DeskSessionActivityAttributes.ContentState, now: Date) -> String {
         let elapsedMs = elapsedMs(state: state, now: now)
         let displayMs: Int
@@ -205,7 +252,6 @@ private enum LiveActivityTimerFormatting {
         } else {
             displayMs = max(0, elapsedMs)
         }
-
         let sec = displayMs / 1_000
         let h = sec / 3_600
         let m = (sec % 3_600) / 60
@@ -221,7 +267,7 @@ private enum LiveActivityTimerFormatting {
     }
 }
 
-// MARK: - Colors (aligned with app `DeskTheme.mainCard`)
+// MARK: - Colors
 
 private enum LiveActivityDeskTheme {
     static func cardBackground(for postureRaw: String) -> Color {

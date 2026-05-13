@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		E85F10122FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E85F10022FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E85F10132FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E85F10012FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework */; };
+		E85F10272FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E85F10012FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework */; };
+		E85F10282FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E85F10012FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +40,17 @@
 				E85F10122FB3C8F30016F9C3 /* DeskFocusLiveActivity.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E85F102A2FB3C8F30016F9C3 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				E85F10282FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -84,6 +97,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E85F10272FB3C8F30016F9C3 /* DeskFocusLiveSupport.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,12 +149,14 @@
 				D65128CB2FB3C8F30016F9C3 /* Sources */,
 				D65128CC2FB3C8F30016F9C3 /* Frameworks */,
 				D65128CD2FB3C8F30016F9C3 /* Resources */,
+				E85F102A2FB3C8F30016F9C3 /* Embed Frameworks */,
 				E85F100E2FB3C8F30016F9C3 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				E85F10172FB3C8F30016F9C3 /* PBXTargetDependency */,
+				E85F102B2FB3C8F30016F9C3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				D65128D12FB3C8F30016F9C3 /* DeskFocus */,
@@ -298,6 +314,11 @@
 			target = E85F10052FB3C8F30016F9C3 /* DeskFocusLiveSupport */;
 			targetProxy = E85F10192FB3C8F30016F9C3 /* PBXContainerItemProxy */;
 		};
+		E85F102B2FB3C8F30016F9C3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E85F10052FB3C8F30016F9C3 /* DeskFocusLiveSupport */;
+			targetProxy = E85F10192FB3C8F30016F9C3 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -426,8 +447,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DeskFocus/DeskFocus.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CD85A9F2K3;
@@ -460,8 +482,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DeskFocus/DeskFocus.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CD85A9F2K3;
@@ -563,6 +586,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_ENTITLEMENTS = DeskFocusLiveActivity/DeskFocusLiveActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CD85A9F2K3;
@@ -593,6 +617,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_ENTITLEMENTS = DeskFocusLiveActivity/DeskFocusLiveActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CD85A9F2K3;
