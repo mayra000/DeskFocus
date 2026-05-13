@@ -24,6 +24,17 @@ struct DeskView: View {
     }
 
     var body: some View {
+        deskScrollStack
+            .preferredColorScheme(.dark)
+            .animation(.easeInOut(duration: 0.45), value: deskStore.posture)
+            .animation(.easeInOut(duration: 0.35), value: deskStore.sessionDisplayMode)
+            .animation(.easeInOut(duration: 0.28), value: deskStore.running)
+            .onAppear {
+                UIApplication.deskFocusDismissKeyboard()
+            }
+    }
+
+    private var deskScrollStack: some View {
         ZStack {
             TimerVerticalFillBackground(
                 fraction: deskTimerFillFraction,
@@ -50,11 +61,6 @@ struct DeskView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .preferredColorScheme(.dark)
-        .animation(.easeInOut(duration: 0.45), value: deskStore.posture)
-        .onAppear {
-            UIApplication.deskFocusDismissKeyboard()
-        }
     }
 
     /// 0 → empty deeper fill at bottom; 1 → full bleed deep (aligned with countdown draining / elapsed progress).
@@ -95,18 +101,12 @@ struct DeskView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
 
-            HStack(alignment: .lastTextBaseline, spacing: 6) {
-                timerDigitGroup(value: displayHMS.h, width: 44, label: "HOURS")
-                Text(":")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundStyle(DeskTheme.primary)
-                    .offset(y: -12)
-                timerDigitGroup(value: displayHMS.m, width: 44, label: "MINUTES")
-                Text(":")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundStyle(DeskTheme.primary)
-                    .offset(y: -12)
-                timerDigitGroup(value: displayHMS.s, width: 44, label: "SECONDS")
+            Group {
+                if deskStore.sessionDisplayMode == .countdown {
+                    countdownPickerSection
+                } else {
+                    stopwatchDigitsRow
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -123,7 +123,10 @@ struct DeskView: View {
 
                 deskCircleIconButton(
                     systemName: deskStore.sessionDisplayMode == .countdown ? "stopwatch" : "clock",
-                    accessibilityLabel: "Toggle countdown or stopwatch"
+                    accessibilityLabel: deskStore.sessionDisplayMode == .countdown
+                        ? "Switch to stopwatch"
+                        : "Switch to countdown timer",
+                    emphasized: deskStore.sessionDisplayMode == .countdown
                 ) {
                     deskStore.toggleSessionDisplayMode()
                 }
@@ -167,12 +170,177 @@ struct DeskView: View {
     private var sessionContextCaption: String {
         switch deskStore.sessionDisplayMode {
         case .countdown:
-            return "COUNTDOWN REMAINING"
+            return "COUNTDOWN"
         case .stopwatch:
             return deskStore.posture == .sitting
                 ? "YOU HAVE BEEN SITTING FOR"
                 : "YOU HAVE BEEN STANDING FOR"
         }
+    }
+
+    /// Face shown in countdown mode: remaining while running, configured duration while paused.
+    private var countdownFaceMs: Int {
+        if deskStore.running {
+            return max(0, deskStore.countdownDurationMs - deskStore.sessionElapsedMs)
+        }
+        return deskStore.countdownDurationMs
+    }
+
+    private var countdownFaceHMS: (h: Int, m: Int, s: Int) {
+        let sec = countdownFaceMs / 1_000
+        return (sec / 3_600, (sec % 3_600) / 60, sec % 60)
+    }
+
+    private var countdownSteppersEnabled: Bool {
+        deskStore.sessionDisplayMode == .countdown && !deskStore.running
+    }
+
+    private var stopwatchDigitsRow: some View {
+        HStack(alignment: .lastTextBaseline, spacing: 6) {
+            timerDigitGroup(value: displayHMS.h, width: 44, label: "HOURS")
+            Text(":")
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(DeskTheme.primary)
+                .offset(y: -12)
+            timerDigitGroup(value: displayHMS.m, width: 44, label: "MINUTES")
+            Text(":")
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(DeskTheme.primary)
+                .offset(y: -12)
+            timerDigitGroup(value: displayHMS.s, width: 44, label: "SECONDS")
+        }
+    }
+
+    private var countdownPickerSection: some View {
+        let hms = countdownFaceHMS
+
+        return VStack(spacing: 14) {
+            HStack(spacing: 10) {
+                countdownQuantityColumn(
+                    value: hms.h,
+                    padDigits: false,
+                    label: "HOURS",
+                    steppersEnabled: countdownSteppersEnabled,
+                    incrementAccessibilityLabel: "Increase countdown hours",
+                    decrementAccessibilityLabel: "Decrease countdown hours",
+                    increment: {
+                        deskStore.setCountdownDurationMs(deskStore.countdownDurationMs + 3_600 * 1_000)
+                    },
+                    decrement: {
+                        deskStore.setCountdownDurationMs(deskStore.countdownDurationMs - 3_600 * 1_000)
+                    }
+                )
+
+                Text(":")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(DeskTheme.primary)
+                    .frame(height: 44)
+                    .offset(y: -10)
+
+                countdownQuantityColumn(
+                    value: hms.m,
+                    padDigits: true,
+                    label: "MINUTES",
+                    steppersEnabled: countdownSteppersEnabled,
+                    incrementAccessibilityLabel: "Increase countdown by five minutes",
+                    decrementAccessibilityLabel: "Decrease countdown by five minutes",
+                    increment: {
+                        deskStore.setCountdownDurationMs(deskStore.countdownDurationMs + COUNTDOWN_STEP_MS)
+                    },
+                    decrement: {
+                        deskStore.setCountdownDurationMs(deskStore.countdownDurationMs - COUNTDOWN_STEP_MS)
+                    }
+                )
+
+                Text(":")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(DeskTheme.primary)
+                    .frame(height: 44)
+                    .offset(y: -10)
+
+                countdownQuantityColumn(
+                    value: hms.s,
+                    padDigits: true,
+                    label: "SECONDS",
+                    steppersEnabled: false,
+                    incrementAccessibilityLabel: "Increase countdown seconds",
+                    decrementAccessibilityLabel: "Decrease countdown seconds",
+                    increment: {},
+                    decrement: {}
+                )
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.black.opacity(0.22))
+            )
+        }
+    }
+
+    private func countdownQuantityColumn(
+        value: Int,
+        padDigits: Bool,
+        label: String,
+        steppersEnabled: Bool,
+        incrementAccessibilityLabel: String,
+        decrementAccessibilityLabel: String,
+        increment: @escaping () -> Void,
+        decrement: @escaping () -> Void
+    ) -> some View {
+        let digitText = padDigits ? String(format: "%02d", value) : "\(value)"
+
+        return VStack(spacing: 8) {
+            countdownArrowButton(
+                up: true,
+                enabled: steppersEnabled,
+                accessibilityLabel: incrementAccessibilityLabel,
+                action: increment
+            )
+
+            Text(digitText)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(DeskTheme.primary)
+                .frame(minWidth: 44)
+                .frame(height: 44)
+
+            countdownArrowButton(
+                up: false,
+                enabled: steppersEnabled,
+                accessibilityLabel: decrementAccessibilityLabel,
+                action: decrement
+            )
+
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(DeskTheme.muted)
+                .textCase(.uppercase)
+                .tracking(0.5)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func countdownArrowButton(
+        up: Bool,
+        enabled: Bool,
+        accessibilityLabel: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: "triangle.fill")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(DeskTheme.primary.opacity(enabled ? 1 : 0.28))
+                .rotationEffect(.degrees(up ? 0 : 180))
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.black.opacity(0.35))
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private var switchPostureTitle: String {
@@ -212,6 +380,7 @@ struct DeskView: View {
     private func deskCircleIconButton(
         systemName: String,
         accessibilityLabel: String,
+        emphasized: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -221,7 +390,7 @@ struct DeskView: View {
                 .frame(width: 52, height: 52)
                 .background(
                     Circle()
-                        .strokeBorder(DeskTheme.border, lineWidth: 1)
+                        .strokeBorder(DeskTheme.border, lineWidth: emphasized ? 2 : 1)
                         .background(Circle().fill(Color.black.opacity(0.12)))
                 )
         }

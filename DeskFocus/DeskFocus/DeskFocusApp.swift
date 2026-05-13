@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 @MainActor
 private final class DeskFocusSessionBootstrap {
@@ -33,20 +34,26 @@ private struct DeskFocusRootView: View {
     @State private var bootstrap: DeskFocusSessionBootstrap?
 
     var body: some View {
-        Group {
-            if let bootstrap {
-                ZStack {
-                    ContentView()
-                        .environment(bootstrap.deskStore)
-                        .environment(bootstrap.pomodoroStore)
+        ZStack {
+            LaunchBrandGradient()
+                .ignoresSafeArea()
 
-                    ConfettiView(driver: bootstrap.confettiDriver)
-                        .allowsHitTesting(false)
-                        .ignoresSafeArea()
+            Group {
+                if let bootstrap {
+                    ZStack {
+                        ContentView()
+                            .environment(bootstrap.deskStore)
+                            .environment(bootstrap.pomodoroStore)
+
+                        ConfettiView(driver: bootstrap.confettiDriver)
+                            .allowsHitTesting(false)
+                            .ignoresSafeArea()
+                    }
+                } else {
+                    ProgressView()
+                        .tint(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .task {
@@ -67,6 +74,10 @@ struct DeskFocusApp: App {
             fatalError(String(describing: error))
         }
     }()
+
+    init() {
+        UIWindow.appearance().backgroundColor = LaunchBrandGradient.uiWindowFallback
+    }
 
     var body: some Scene {
         WindowGroup {

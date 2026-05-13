@@ -70,7 +70,10 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .background(chromeBackdrop)
+            .background {
+                chromeBackdrop
+                    .ignoresSafeArea(edges: .bottom)
+            }
             .animation(.easeInOut(duration: 0.32), value: modeRaw)
             .animation(.easeInOut(duration: 0.35), value: pomodoroStore.phase)
             .animation(.easeInOut(duration: 0.45), value: deskStore.posture)
