@@ -43,3 +43,11 @@ func formatDeskDuration(ms: Int) -> String {
     }
     return "\(m) min"
 }
+
+/// Compact goal string for desk UI (e.g. `1h 0m`).
+func formatCompactStandingGoal(ms: Int) -> String {
+    let totalMinutes = max(0, ms) / (60 * 1000)
+    let h = totalMinutes / 60
+    let m = totalMinutes % 60
+    return "\(h)h \(m)m"
+}

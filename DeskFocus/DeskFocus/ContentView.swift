@@ -6,6 +6,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 enum DeskFocusAppMode: String, CaseIterable {
     case desk
@@ -24,6 +25,7 @@ enum DeskFocusAppMode: String, CaseIterable {
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(DeskSessionStore.self) private var deskStore
+    @Environment(PomodoroStore.self) private var pomodoroStore
 
     @AppStorage(DeskFocusAppMode.storageKey)
     private var modeRaw: String = DeskFocusAppMode.desk.rawValue
@@ -39,60 +41,114 @@ struct ContentView: View {
         )
     }
 
+    private var pomodoroPhaseColors: PomodoroTheme.PhaseColors {
+        PomodoroTheme.colors(for: pomodoroStore.phase)
+    }
+
+    /// Matches the lighter band of each tab’s vertical progress background.
+    private var chromeBackdrop: Color {
+        switch selectedMode {
+        case .desk:
+            return DeskTheme.timerSplitBase(for: deskStore.posture)
+        case .pomodoro:
+            return PomodoroTheme.timerSplitColors(for: pomodoroStore.phase).base
+        }
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                headerModeSwitcher
+                appHeader
 
-                Group {
-                    switch selectedMode {
-                    case .desk:
-                        DeskView()
-                    case .pomodoro:
-                        PomodoroView()
-                    }
+                TabView(selection: selectedModeBinding) {
+                    DeskView()
+                        .tag(DeskFocusAppMode.desk)
+                    PomodoroView()
+                        .tag(DeskFocusAppMode.pomodoro)
                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationTitle("DeskFocus")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .background(chromeBackdrop)
+            .animation(.easeInOut(duration: 0.32), value: modeRaw)
+            .animation(.easeInOut(duration: 0.35), value: pomodoroStore.phase)
+            .animation(.easeInOut(duration: 0.45), value: deskStore.posture)
+            .onChange(of: modeRaw) { _, newRaw in
+                if DeskFocusAppMode(rawValue: newRaw) == .desk {
+                    UIApplication.deskFocusDismissKeyboard()
+                }
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 deskStore.handleForeground()
+                pomodoroStore.handleForeground()
             }
         }
     }
 
-    private var headerModeSwitcher: some View {
-        HStack(spacing: 4) {
-            ForEach(DeskFocusAppMode.allCases, id: \.self) { mode in
-                Button {
-                    selectedModeBinding.wrappedValue = mode
-                } label: {
-                    Text(mode.title)
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(selectedMode == mode ? Color.accentColor : Color.clear)
-                        )
-                        .foregroundStyle(selectedMode == mode ? Color.white : Color.primary)
+    private var appHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text("DESKFOCUS")
+                .font(.system(.subheadline, design: .default).weight(.bold))
+                .tracking(0.8)
+                .foregroundStyle(selectedMode == .desk ? DeskTheme.primary : PomodoroTheme.primary)
+
+            Spacer(minLength: 8)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selectedModeBinding.wrappedValue = selectedMode == .desk ? .pomodoro : .desk
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selectedMode == mode ? [.isSelected] : [])
+            } label: {
+                Text(selectedMode == .desk ? "SWITCH TO POMODORO" : "SWITCH TO STANDING TIMER")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.3)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .foregroundStyle(
+                        selectedMode == .desk ? DeskTheme.primary : PomodoroTheme.primary
+                    )
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(selectedMode == .pomodoro ? pomodoroPhaseColors.headerButtonFill : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(
+                                selectedMode == .desk
+                                    ? DeskTheme.border
+                                    : PomodoroTheme.primary.opacity(0.95),
+                                lineWidth: 1
+                            )
+                    )
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(selectedMode == .desk ? "Switch to Pomodoro" : "Switch to standing desk timer")
         }
-        .padding(4)
-        .background(
-            Capsule(style: .continuous)
-                .fill(Color(.secondarySystemFill))
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(chromeBackdrop)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded { _ in UIApplication.deskFocusDismissKeyboard() }
         )
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .accessibilityLabel("App mode")
-        .accessibilityHint("Switch between Desk timer and Pomodoro")
+    }
+}
+
+extension UIApplication {
+    static func deskFocusDismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 }
 

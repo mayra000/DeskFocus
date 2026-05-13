@@ -2,7 +2,7 @@
 //  StandingWeekBadgesView.swift
 //  DeskFocus
 //
-//  Mirrors React StandingWeekBadges / workweek standing goal badges (Mon–Fri).
+//  Mon–Fri standing goal progress (ISO workweek).
 //
 
 import SwiftData
@@ -23,84 +23,64 @@ struct StandingWeekBadgesView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("This week")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 10) {
-                ForEach(badges) { day in
-                    badgeTile(day)
-                }
+        HStack(spacing: 0) {
+            ForEach(badges) { day in
+                badgeCell(day)
+                    .frame(maxWidth: .infinity)
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Standing goal progress Monday through Friday")
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Standing goal progress Monday through Friday")
     }
 
-    @ViewBuilder
-    private func badgeTile(_ day: WorkweekBadgeDay) -> some View {
-        let side: CGFloat = 40
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(tileBackground(for: day.kind))
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(tileStroke(for: day.kind), lineWidth: 1)
+    private func badgeCell(_ day: WorkweekBadgeDay) -> some View {
+        let diameter: CGFloat = 32
+        return VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .strokeBorder(circleStroke(for: day.kind), lineWidth: 1.5)
+                    .background(Circle().fill(circleFill(for: day.kind)))
+                    .frame(width: diameter, height: diameter)
 
-            if day.kind == .partial, deskStore.standingGoalMs > 0 {
-                GeometryReader { geo in
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.35))
-                        .frame(width: max(4, geo.size.width * day.ratio))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                        .padding(2)
+                if day.kind == .partial, deskStore.standingGoalMs > 0 {
+                    Circle()
+                        .trim(from: 0, to: CGFloat(day.ratio))
+                        .stroke(DeskTheme.primary.opacity(0.85), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: diameter - 6, height: diameter - 6)
                 }
             }
 
             Text(day.labelShort)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(tileForeground(for: day.kind))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(DeskTheme.primary.opacity(0.9))
         }
-        .frame(width: side, height: side)
         .accessibilityLabel(accessibilityLabel(for: day))
     }
 
-    private func tileBackground(for kind: WorkweekBadgeKind) -> Color {
+    private func circleFill(for kind: WorkweekBadgeKind) -> Color {
         switch kind {
         case .future:
-            return Color(.secondarySystemFill)
+            return Color.clear
         case .complete:
-            return Color.green.opacity(0.35)
+            return DeskTheme.primary.opacity(0.22)
         case .partial:
-            return Color(.tertiarySystemFill)
+            return Color.clear
         case .missed:
-            return Color.red.opacity(0.15)
+            return DeskTheme.primary.opacity(0.06)
         }
     }
 
-    private func tileStroke(for kind: WorkweekBadgeKind) -> Color {
+    private func circleStroke(for kind: WorkweekBadgeKind) -> Color {
         switch kind {
         case .future:
-            return Color.secondary.opacity(0.35)
+            return DeskTheme.border.opacity(0.65)
         case .complete:
-            return Color.green.opacity(0.7)
+            return DeskTheme.primary.opacity(0.9)
         case .partial:
-            return Color.accentColor.opacity(0.45)
+            return DeskTheme.border
         case .missed:
-            return Color.red.opacity(0.45)
-        }
-    }
-
-    private func tileForeground(for kind: WorkweekBadgeKind) -> Color {
-        switch kind {
-        case .future:
-            return .secondary
-        case .complete:
-            return .primary
-        case .partial:
-            return .primary
-        case .missed:
-            return .secondary
+            return DeskTheme.muted.opacity(0.75)
         }
     }
 
@@ -130,4 +110,5 @@ struct StandingWeekBadgesView: View {
         .modelContainer(container)
         .environment(store)
         .padding()
+        .background(DeskTheme.screenBackground(for: .standing))
 }
