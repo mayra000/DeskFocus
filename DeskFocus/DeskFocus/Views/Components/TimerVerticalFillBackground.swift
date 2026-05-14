@@ -29,5 +29,6 @@ struct TimerVerticalFillBackground: View {
             }
             .animation(.smooth(duration: 0.42), value: fraction)
         }
+        .allowsHitTesting(false)
     }
 }

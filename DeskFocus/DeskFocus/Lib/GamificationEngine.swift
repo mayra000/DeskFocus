@@ -50,10 +50,10 @@ func computeGamificationSnapshot(
     )
 }
 
-/// Mon–Fri tiles for the ISO week containing `now` (anchors on `mondayOf(now)` offsets `0 … 4`).
+/// Mon–Fri tiles for the calendar week containing `now` (week starts Monday; anchors on `mondayOf(now)` offsets `0 … 4`).
 func getWorkweekStandingBadges(now: Date, logs: [DailyPostureLog], goalMs: Int) -> [WorkweekBadgeDay] {
     let lookup = postureLogLookup(logs)
-    let isoCal = Calendar(identifier: .iso8601)
+    let weekCalendar = Calendar(identifier: .iso8601)
     let anchorMonday = mondayOf(now)
 
     let labelShortMonFri = ["M", "T", "W", "TH", "F"]
@@ -61,7 +61,7 @@ func getWorkweekStandingBadges(now: Date, logs: [DailyPostureLog], goalMs: Int) 
     var badges: [WorkweekBadgeDay] = []
 
     for offset in 0 ..< 5 {
-        guard let slotDate = isoCal.date(byAdding: .day, value: offset, to: anchorMonday) else {
+        guard let slotDate = weekCalendar.date(byAdding: .day, value: offset, to: anchorMonday) else {
             continue
         }
 
@@ -125,13 +125,13 @@ private func postureLogLookup(_ logs: [DailyPostureLog]) -> [String: DailyPostur
 }
 
 private func aggregateWeeklyStandingOnWorkdays(logs: [DailyPostureLog], now: Date) -> Int {
-    let isoCal = Calendar(identifier: .iso8601)
+    let weekCalendar = Calendar(identifier: .iso8601)
     let weekStart = mondayOf(now)
     let lookup = postureLogLookup(logs)
 
     var total = 0
     for offset in 0 ..< 7 {
-        guard let day = isoCal.date(byAdding: .day, value: offset, to: weekStart) else {
+        guard let day = weekCalendar.date(byAdding: .day, value: offset, to: weekStart) else {
             continue
         }
         if !isWorkday(day) {
@@ -142,7 +142,7 @@ private func aggregateWeeklyStandingOnWorkdays(logs: [DailyPostureLog], now: Dat
     return total
 }
 
-/// Badge classification for ISO week tiles (same rules for past / today / future).
+/// Badge classification for Mon–Fri week tiles (same rules for past / today / future).
 private func classifyStandingBadge(
     day: Date,
     now: Date,

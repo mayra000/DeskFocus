@@ -126,12 +126,26 @@ final class DeskSessionStore {
 
     func clearSession() {
         guard !running else { return }
+        clearDeskTimerElapsedState()
+        persist()
+    }
+
+    /// Pauses if running, then clears desk timer **progress only** (elapsed, live activity, alerts).
+    /// Does not change countdown duration, posture, weekly sitting totals, or SwiftData logs.
+    func resetDeskTimerProgress() {
+        if running {
+            pauseAndPersist(at: Date())
+        }
+        clearDeskTimerElapsedState()
+        persist()
+    }
+
+    private func clearDeskTimerElapsedState() {
         notificationScheduler.cancelAllDeskAlerts()
         sessionPausedMs = 0
         runStartedAt = nil
         standingConfettiAccumMs = 0
         deskLiveActivityVisible = false
-        persist()
     }
 
     func switchPosture() {
@@ -330,8 +344,8 @@ final class DeskSessionStore {
 
         var cursor = start
         while cursor < end {
-            let sliceKey = isoWeekKey(for: cursor)
-            let boundary = isoWeekExclusiveEnd(containing: cursor)
+            let sliceKey = calendarWeekKey(for: cursor)
+            let boundary = exclusiveEndOfCalendarWeek(containing: cursor)
             let segmentEnd = min(boundary, end)
 
             if sliceKey != weekKey {

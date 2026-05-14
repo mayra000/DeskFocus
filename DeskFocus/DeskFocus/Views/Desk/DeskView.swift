@@ -11,6 +11,15 @@ import UIKit
 struct DeskView: View {
     @Environment(DeskSessionStore.self) private var deskStore
 
+    private enum CountdownDigitField: Hashable {
+        case hour, minute, second
+    }
+
+    @FocusState private var countdownFocusedDigit: CountdownDigitField?
+    @State private var countdownHourDraft = ""
+    @State private var countdownMinuteDraft = ""
+    @State private var countdownSecondDraft = ""
+
     var body: some View {
         deskScrollStack
             .preferredColorScheme(.dark)
@@ -20,6 +29,18 @@ struct DeskView: View {
             .animation(.easeInOut(duration: 0.22), value: deskStore.sessionPausedMs)
             .onAppear {
                 UIApplication.deskFocusDismissKeyboard()
+            }
+            .onChange(of: deskStore.sessionDisplayMode) { _, newMode in
+                if newMode != .countdown {
+                    countdownFocusedDigit = nil
+                    UIApplication.deskFocusDismissKeyboard()
+                }
+            }
+            .onChange(of: deskStore.running) { _, isRunning in
+                if isRunning {
+                    countdownFocusedDigit = nil
+                    UIApplication.deskFocusDismissKeyboard()
+                }
             }
     }
 
@@ -42,8 +63,8 @@ struct DeskView: View {
                         // Wellness facts carousel hidden for a cleaner desk UI (see `deskWellnessFacts` / FactCarouselView if restoring).
                         weeklySittingSection
 
-                        WeeklySummaryView()
                         ActivityLogView()
+                        WeeklySummaryView()
                     }
                 }
                 .padding(.horizontal, 20)
@@ -51,9 +72,31 @@ struct DeskView: View {
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .scrollDisabled(countdownFocusedDigit != nil)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(edges: .bottom)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                if countdownFocusedDigit != nil {
+                    Spacer()
+                    Button("Done") {
+                        if let field = countdownFocusedDigit {
+                            commitCountdownField(field)
+                        }
+                        countdownFocusedDigit = nil
+                        UIApplication.deskFocusDismissKeyboard()
+                    }
+                    .font(.body.weight(.semibold))
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            guard let field = countdownFocusedDigit else { return }
+            commitCountdownField(field)
+            countdownFocusedDigit = nil
+        }
     }
 
     /// 0 → empty deeper fill at bottom; 1 → full bleed deep (aligned with countdown draining / elapsed progress).
@@ -104,12 +147,24 @@ struct DeskView: View {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 20) {
-                deskCircleIconButton(systemName: "play.fill", accessibilityLabel: "Play") {
-                    deskStore.play()
+                deskCircleIconButton(
+                    systemName: deskStore.running ? "pause.fill" : "play.fill",
+                    accessibilityLabel: deskStore.running ? "Pause" : "Play"
+                ) {
+                    if deskStore.running {
+                        deskStore.pause()
+                    } else {
+                        deskStore.play()
+                    }
                 }
-                .opacity(deskStore.running ? 0.35 : 1)
 
-                deskPauseOrClearButton
+                deskCircleIconButton(
+                    systemName: "xmark",
+                    accessibilityLabel: deskClearTimerAccessibilityLabel,
+                    disabled: !deskClearTimerEnabled
+                ) {
+                    deskStore.resetDeskTimerProgress()
+                }
 
                 deskCircleIconButton(
                     systemName: deskStore.sessionDisplayMode == .countdown ? "stopwatch" : "clock",
@@ -149,20 +204,18 @@ struct DeskView: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Pause while running; when paused with elapsed time, clears the session (same as `DeskSessionStore.clearSession()`).
-    private var deskPauseOrClearButton: some View {
-        let pausedWithTime = !deskStore.running && deskStore.sessionElapsedMs > 0
-        return deskCircleIconButton(
-            systemName: deskStore.running ? "pause.fill" : (pausedWithTime ? "xmark" : "pause.fill"),
-            accessibilityLabel: deskStore.running ? "Pause" : (pausedWithTime ? "Clear timer" : "Pause")
-        ) {
-            if deskStore.running {
-                deskStore.pause()
-            } else if pausedWithTime {
-                deskStore.clearSession()
-            }
+    /// Clear is enabled whenever the timer is running or has accumulated elapsed time (> 0).
+    private var deskClearTimerEnabled: Bool {
+        deskStore.running || deskStore.sessionElapsedMs > 0
+    }
+
+    private var deskClearTimerAccessibilityLabel: String {
+        switch deskStore.sessionDisplayMode {
+        case .countdown:
+            return "Clear countdown"
+        case .stopwatch:
+            return "Clear stopwatch"
         }
-        .opacity(deskStore.running || pausedWithTime ? 1 : 0.35)
     }
 
     private var posturePill: some View {
@@ -223,6 +276,8 @@ struct DeskView: View {
         return VStack(spacing: 14) {
             HStack(spacing: 10) {
                 countdownQuantityColumn(
+                    field: .hour,
+                    draft: $countdownHourDraft,
                     value: hms.h,
                     padDigits: false,
                     label: "HOURS",
@@ -244,6 +299,8 @@ struct DeskView: View {
                     .offset(y: -10)
 
                 countdownQuantityColumn(
+                    field: .minute,
+                    draft: $countdownMinuteDraft,
                     value: hms.m,
                     padDigits: true,
                     label: "MINUTES",
@@ -265,10 +322,13 @@ struct DeskView: View {
                     .offset(y: -10)
 
                 countdownQuantityColumn(
+                    field: .second,
+                    draft: $countdownSecondDraft,
                     value: hms.s,
                     padDigits: true,
                     label: "SECONDS",
                     steppersEnabled: false,
+                    digitTapEnabled: countdownSteppersEnabled,
                     incrementAccessibilityLabel: "Increase countdown seconds",
                     decrementAccessibilityLabel: "Decrease countdown seconds",
                     increment: {},
@@ -285,16 +345,20 @@ struct DeskView: View {
     }
 
     private func countdownQuantityColumn(
+        field: CountdownDigitField,
+        draft: Binding<String>,
         value: Int,
         padDigits: Bool,
         label: String,
         steppersEnabled: Bool,
+        digitTapEnabled: Bool? = nil,
         incrementAccessibilityLabel: String,
         decrementAccessibilityLabel: String,
         increment: @escaping () -> Void,
         decrement: @escaping () -> Void
     ) -> some View {
         let digitText = padDigits ? String(format: "%02d", value) : "\(value)"
+        let tapsOK = digitTapEnabled ?? steppersEnabled
 
         return VStack(spacing: 8) {
             countdownArrowButton(
@@ -304,12 +368,7 @@ struct DeskView: View {
                 action: increment
             )
 
-            Text(digitText)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(DeskTheme.primary)
-                .frame(minWidth: 44)
-                .frame(height: 44)
+            countdownDigitEntry(field: field, displayText: digitText, draft: draft, tapEnabled: tapsOK)
 
             countdownArrowButton(
                 up: false,
@@ -325,6 +384,108 @@ struct DeskView: View {
                 .tracking(0.5)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func countdownDigitEntry(
+        field: CountdownDigitField,
+        displayText: String,
+        draft: Binding<String>,
+        tapEnabled: Bool
+    ) -> some View {
+        let focusedHere = countdownFocusedDigit == field
+
+        return ZStack {
+            // Keep TextField in the hierarchy so focus → keyboard is reliable (conditional swap often fails inside ScrollView).
+            TextField("", text: draft)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(DeskTheme.primary)
+                .tint(DeskTheme.primary)
+                .frame(minWidth: 56, minHeight: 48)
+                .focused($countdownFocusedDigit, equals: field)
+                .opacity(focusedHere ? 1 : 0)
+                .allowsHitTesting(focusedHere)
+                .accessibilityLabel(countdownDigitAccessibilityLabel(field))
+                .accessibilityHidden(!focusedHere)
+
+            if !focusedHere {
+                Button {
+                    guard tapEnabled else { return }
+                    beginEditingCountdownField(field)
+                } label: {
+                    Text(displayText)
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(DeskTheme.primary)
+                        .frame(minWidth: 56, minHeight: 48)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .allowsHitTesting(tapEnabled)
+                .accessibilityLabel(countdownDigitAccessibilityLabel(field))
+                .accessibilityHint(tapEnabled ? "Tap to type a value" : "")
+            }
+        }
+        .frame(minHeight: 48)
+    }
+
+    private func countdownDigitAccessibilityLabel(_ field: CountdownDigitField) -> String {
+        switch field {
+        case .hour: return "Countdown hours"
+        case .minute: return "Countdown minutes"
+        case .second: return "Countdown seconds"
+        }
+    }
+
+    private func beginEditingCountdownField(_ field: CountdownDigitField) {
+        if let current = countdownFocusedDigit, current != field {
+            commitCountdownField(current)
+        }
+        let hms = countdownFaceHMS
+        switch field {
+        case .hour:
+            countdownHourDraft = "\(hms.h)"
+        case .minute:
+            countdownMinuteDraft = String(format: "%02d", hms.m)
+        case .second:
+            countdownSecondDraft = String(format: "%02d", hms.s)
+        }
+        // Next run loop so the TextField is hit-testable before accepting focus (helps inside ScrollView / TabView).
+        DispatchQueue.main.async {
+            countdownFocusedDigit = field
+        }
+    }
+
+    private func commitCountdownField(_ field: CountdownDigitField) {
+        let hms = countdownFaceHMS
+        let totalSec: Int
+        switch field {
+        case .hour:
+            let h = parseRawNonNegativeInt(countdownHourDraft, fallback: hms.h)
+            totalSec = max(0, h) * 3_600 + max(0, hms.m) * 60 + max(0, hms.s)
+        case .minute:
+            let mParsed = parseRawNonNegativeInt(countdownMinuteDraft, fallback: hms.m)
+            if mParsed >= 60 {
+                // Whole-minute duration (e.g. 80 → 1h 20m; 90 → 1h 30m), not “shown hours + mParsed”.
+                totalSec = mParsed * 60 + max(0, hms.s)
+            } else {
+                totalSec = max(0, hms.h) * 3_600 + mParsed * 60 + max(0, hms.s)
+            }
+        case .second:
+            let s = parseRawNonNegativeInt(countdownSecondDraft, fallback: hms.s)
+            totalSec = max(0, hms.h) * 3_600 + max(0, hms.m) * 60 + max(0, s)
+        }
+        deskStore.setCountdownDurationMs(totalSec * 1_000)
+    }
+
+    /// Parses a non-negative integer from draft text; empty/invalid uses `fallback`.
+    private func parseRawNonNegativeInt(_ raw: String, fallback: Int) -> Int {
+        let digits = raw.filter(\.isNumber)
+        guard !digits.isEmpty, let v = Int(digits) else { return fallback }
+        return max(0, v)
     }
 
     private func countdownArrowButton(
@@ -387,12 +548,13 @@ struct DeskView: View {
         systemName: String,
         accessibilityLabel: String,
         emphasized: Bool = false,
+        disabled: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.title3.weight(.medium))
-                .foregroundStyle(DeskTheme.primary)
+                .foregroundStyle(DeskTheme.primary.opacity(disabled ? 0.28 : 1))
                 .frame(width: 52, height: 52)
                 .background(
                     Circle()
@@ -401,6 +563,7 @@ struct DeskView: View {
                 )
         }
         .buttonStyle(.plain)
+        .disabled(disabled)
         .accessibilityLabel(accessibilityLabel)
     }
 

@@ -2,7 +2,7 @@
 //  StandingWeekBadgesView.swift
 //  DeskFocus
 //
-//  Mon–Fri standing goal progress (ISO workweek).
+//  Mon–Fri standing goal progress (week starts Monday).
 //
 
 import SwiftData

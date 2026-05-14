@@ -2,7 +2,7 @@
 //  WeeklySummaryView.swift
 //  DeskFocus
 //
-//  Mirrors React WeeklySummary — ISO week stats, sitting vs standing aggregates, streak hints.
+//  Mirrors React WeeklySummary — week stats (Monday-based weeks), sitting vs standing aggregates, streak hints.
 //
 
 import SwiftData
@@ -27,9 +27,9 @@ struct WeeklySummaryView: View {
             Text("Week summary")
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 8) {
-                summaryRow(title: "ISO week", value: deskStore.weekKey)
-                summaryRow(title: "Sitting (this ISO week)", value: formatDeskDuration(ms: deskStore.weeklySittingMs))
+            VStack(alignment: .leading, spacing: 16) {
+                summaryRow(title: "Week", value: deskStore.weekKey)
+                summaryRow(title: "Sitting this week", value: formatDeskDuration(ms: deskStore.weeklySittingMs))
                 summaryRow(
                     title: "Standing on workdays",
                     value: formatDeskDuration(ms: snapshot.weeklyStandingWorkdaysMs)

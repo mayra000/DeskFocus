@@ -24,7 +24,8 @@ final class DailyLogStore {
     private let modelContext: ModelContext
     private let defaults: UserDefaults
 
-    private let isoCalendar = Calendar(identifier: .iso8601)
+    /// Monday-first calendar week (matches week summary / badges).
+    private let weekCalendar = Calendar(identifier: .iso8601)
 
     init(modelContext: ModelContext, userDefaults: UserDefaults = .standard) {
         self.modelContext = modelContext
@@ -50,7 +51,7 @@ final class DailyLogStore {
         let monday = mondayOf(now)
         var rows: [WeekDayRow] = []
         for offset in 0..<7 {
-            guard let dayDate = isoCalendar.date(byAdding: .day, value: offset, to: monday) else {
+            guard let dayDate = weekCalendar.date(byAdding: .day, value: offset, to: monday) else {
                 continue
             }
             rows.append(makeWeekDayRow(for: dayDate))

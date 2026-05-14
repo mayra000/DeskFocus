@@ -14,7 +14,7 @@ func dayKey(for date: Date) -> String {
     return String(format: "%04d-%02d-%02d", y, m, d)
 }
 
-/// Start of the ISO 8601 week (Monday 00:00) containing `date`, in `Calendar(identifier: .iso8601)`'s timezone.
+/// Start of the calendar week (Monday 00:00) containing `date`, using `Calendar(identifier: .iso8601)` (Monday-first weeks).
 func mondayOf(_ date: Date) -> Date {
     let cal = Calendar(identifier: .iso8601)
     guard let interval = cal.dateInterval(of: .weekOfYear, for: date) else {
@@ -23,16 +23,16 @@ func mondayOf(_ date: Date) -> Date {
     return interval.start
 }
 
-/// ISO week key aligned with persisted `SessionState.weekKey`, e.g. `2026-W19`.
-func isoWeekKey(for date: Date) -> String {
+/// Week label aligned with persisted `SessionState.weekKey`, e.g. `2026-W19` (year and week number).
+func calendarWeekKey(for date: Date) -> String {
     let cal = Calendar(identifier: .iso8601)
     let year = cal.component(.yearForWeekOfYear, from: date)
     let week = cal.component(.weekOfYear, from: date)
     return "\(year)-W\(String(format: "%02d", week))"
 }
 
-/// Exclusive end (`next Monday`) of the ISO week interval containing `date`.
-func isoWeekExclusiveEnd(containing date: Date) -> Date {
+/// Exclusive end (`next Monday`) of the calendar week containing `date`.
+func exclusiveEndOfCalendarWeek(containing date: Date) -> Date {
     let cal = Calendar(identifier: .iso8601)
     guard let exclusiveEnd = cal.date(byAdding: .day, value: 7, to: mondayOf(date)) else {
         return date.addingTimeInterval(7 * 24 * 3600)

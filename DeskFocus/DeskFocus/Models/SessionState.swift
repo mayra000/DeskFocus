@@ -29,7 +29,7 @@ struct SessionState: Codable, Equatable {
         sessionPausedMs: 0,
         runStartedAt: nil,
         weeklySittingMs: 0,
-        weekKey: isoWeekKey(for: Date()),
+        weekKey: calendarWeekKey(for: Date()),
         factIndex: 0,
         sessionDisplayMode: .stopwatch,
         countdownDurationMs: 30 * 60 * 1000,
