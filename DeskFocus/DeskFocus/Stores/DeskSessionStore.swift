@@ -140,6 +140,15 @@ final class DeskSessionStore {
         persist()
     }
 
+    /// Clears countdown target to `0` only. Leaves shared desk timer elapsed (stopwatch accumulation) untouched.
+    func clearCountdownTime() {
+        guard sessionDisplayMode == .countdown else { return }
+        if running {
+            pauseAndPersist(at: Date())
+        }
+        setCountdownDurationMs(0)
+    }
+
     private func clearDeskTimerElapsedState() {
         notificationScheduler.cancelAllDeskAlerts()
         sessionPausedMs = 0
@@ -256,7 +265,7 @@ final class DeskSessionStore {
             lastReconcileAt = now
         }
 
-        if sessionDisplayMode == .countdown, computeSessionElapsed(at: now) >= countdownDurationMs {
+        if sessionDisplayMode == .countdown, countdownDurationMs > 0, computeSessionElapsed(at: now) >= countdownDurationMs {
             finalizeCountdownCompletion(at: now)
             return
         }
@@ -266,6 +275,11 @@ final class DeskSessionStore {
 
     private func beginPlayWithoutPrompt() {
         guard !running else { return }
+
+        guard sessionDisplayMode != .countdown || countdownDurationMs > 0 else {
+            persist()
+            return
+        }
 
         running = true
         let now = Date()
@@ -422,7 +436,7 @@ final class DeskSessionStore {
             notificationScheduler.scheduleSittingHourAlerts(startedAt: anchor, currentHour: hourNow)
         }
 
-        if sessionDisplayMode == .countdown {
+        if sessionDisplayMode == .countdown, countdownDurationMs > 0 {
             let remainingMs = countdownDurationMs - computeSessionElapsed(at: anchor)
             guard remainingMs > 250 else {
                 finalizeCountdownCompletion(at: anchor)

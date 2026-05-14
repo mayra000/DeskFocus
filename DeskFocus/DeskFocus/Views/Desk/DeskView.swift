@@ -149,7 +149,8 @@ struct DeskView: View {
             HStack(spacing: 20) {
                 deskCircleIconButton(
                     systemName: deskStore.running ? "pause.fill" : "play.fill",
-                    accessibilityLabel: deskStore.running ? "Pause" : "Play"
+                    accessibilityLabel: deskStore.running ? "Pause" : "Play",
+                    disabled: deskPlayBlocked
                 ) {
                     if deskStore.running {
                         deskStore.pause()
@@ -163,7 +164,13 @@ struct DeskView: View {
                     accessibilityLabel: deskClearTimerAccessibilityLabel,
                     disabled: !deskClearTimerEnabled
                 ) {
-                    deskStore.resetDeskTimerProgress()
+                    if deskStore.sessionDisplayMode == .countdown {
+                        countdownFocusedDigit = nil
+                        UIApplication.deskFocusDismissKeyboard()
+                        deskStore.clearCountdownTime()
+                    } else {
+                        deskStore.resetDeskTimerProgress()
+                    }
                 }
 
                 deskCircleIconButton(
@@ -204,9 +211,20 @@ struct DeskView: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Clear is enabled whenever the timer is running or has accumulated elapsed time (> 0).
+    private var deskPlayBlocked: Bool {
+        !deskStore.running
+            && deskStore.sessionDisplayMode == .countdown
+            && deskStore.countdownDurationMs <= 0
+    }
+
+    /// Stopwatch clear: elapsed progress. Countdown clear: countdown target / remaining (`countdownFaceMs`), or running countdown.
     private var deskClearTimerEnabled: Bool {
-        deskStore.running || deskStore.sessionElapsedMs > 0
+        switch deskStore.sessionDisplayMode {
+        case .countdown:
+            return deskStore.running || countdownFaceMs > 0
+        case .stopwatch:
+            return deskStore.running || deskStore.sessionElapsedMs > 0
+        }
     }
 
     private var deskClearTimerAccessibilityLabel: String {
@@ -444,14 +462,11 @@ struct DeskView: View {
         if let current = countdownFocusedDigit, current != field {
             commitCountdownField(current)
         }
-        let hms = countdownFaceHMS
+        // Blank draft so the number pad replaces the prior value instead of inserting into padded text (e.g. "090" → "0090").
         switch field {
-        case .hour:
-            countdownHourDraft = "\(hms.h)"
-        case .minute:
-            countdownMinuteDraft = String(format: "%02d", hms.m)
-        case .second:
-            countdownSecondDraft = String(format: "%02d", hms.s)
+        case .hour: countdownHourDraft = ""
+        case .minute: countdownMinuteDraft = ""
+        case .second: countdownSecondDraft = ""
         }
         // Next run loop so the TextField is hit-testable before accepting focus (helps inside ScrollView / TabView).
         DispatchQueue.main.async {

@@ -26,8 +26,9 @@ func clampStandingGoalMs(_ ms: Int) -> Int {
     return min(max(stepped, standingMinMs), standingMaxMs)
 }
 
-/// Clamps to 1 min–8 hr and rounds to the nearest 5-minute step (then reclamped).
+/// `0` is allowed (cleared countdown). Otherwise clamps to 1 min–8 hr and rounds to the nearest 5-minute step (then reclamped).
 func clampCountdownMs(_ ms: Int) -> Int {
+    guard ms > 0 else { return 0 }
     let clamped = min(max(ms, countdownMinMs), countdownMaxMs)
     let stepped = Int((Double(clamped) / Double(COUNTDOWN_STEP_MS)).rounded()) * COUNTDOWN_STEP_MS
     return min(max(stepped, countdownMinMs), countdownMaxMs)
