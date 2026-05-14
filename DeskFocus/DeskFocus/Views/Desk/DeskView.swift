@@ -17,6 +17,7 @@ struct DeskView: View {
             .animation(.easeInOut(duration: 0.45), value: deskStore.posture)
             .animation(.easeInOut(duration: 0.35), value: deskStore.sessionDisplayMode)
             .animation(.easeInOut(duration: 0.28), value: deskStore.running)
+            .animation(.easeInOut(duration: 0.22), value: deskStore.sessionPausedMs)
             .onAppear {
                 UIApplication.deskFocusDismissKeyboard()
             }
@@ -35,13 +36,15 @@ struct DeskView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     mainTimerCard
 
-                    StandingWeekBadgesView()
-                    standingGoalSection
-                    // Wellness facts carousel hidden for a cleaner desk UI (see `deskWellnessFacts` / FactCarouselView if restoring).
-                    weeklySittingSection
+                    VStack(alignment: .leading, spacing: 56) {
+                        StandingWeekBadgesView()
+                        standingGoalSection
+                        // Wellness facts carousel hidden for a cleaner desk UI (see `deskWellnessFacts` / FactCarouselView if restoring).
+                        weeklySittingSection
 
-                    WeeklySummaryView()
-                    ActivityLogView()
+                        WeeklySummaryView()
+                        ActivityLogView()
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
@@ -106,10 +109,7 @@ struct DeskView: View {
                 }
                 .opacity(deskStore.running ? 0.35 : 1)
 
-                deskCircleIconButton(systemName: "pause.fill", accessibilityLabel: "Pause") {
-                    deskStore.pause()
-                }
-                .opacity(deskStore.running ? 1 : 0.35)
+                deskPauseOrClearButton
 
                 deskCircleIconButton(
                     systemName: deskStore.sessionDisplayMode == .countdown ? "stopwatch" : "clock",
@@ -147,6 +147,22 @@ struct DeskView: View {
                 .fill(DeskTheme.mainCard(for: deskStore.posture))
         )
         .accessibilityElement(children: .contain)
+    }
+
+    /// Pause while running; when paused with elapsed time, clears the session (same as `DeskSessionStore.clearSession()`).
+    private var deskPauseOrClearButton: some View {
+        let pausedWithTime = !deskStore.running && deskStore.sessionElapsedMs > 0
+        return deskCircleIconButton(
+            systemName: deskStore.running ? "pause.fill" : (pausedWithTime ? "xmark" : "pause.fill"),
+            accessibilityLabel: deskStore.running ? "Pause" : (pausedWithTime ? "Clear timer" : "Pause")
+        ) {
+            if deskStore.running {
+                deskStore.pause()
+            } else if pausedWithTime {
+                deskStore.clearSession()
+            }
+        }
+        .opacity(deskStore.running || pausedWithTime ? 1 : 0.35)
     }
 
     private var posturePill: some View {
