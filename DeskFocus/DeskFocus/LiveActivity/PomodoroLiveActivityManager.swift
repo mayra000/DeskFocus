@@ -1,5 +1,5 @@
 //
-//  DeskSessionLiveActivityManager.swift
+//  PomodoroLiveActivityManager.swift
 //  DeskFocus
 //
 
@@ -7,19 +7,16 @@ import ActivityKit
 import DeskFocusLiveSupport
 import Foundation
 
-/// Owns the desk timer Live Activity: `Activity.request` runs only asynchronously after the scene is active.
+/// Owns the Pomodoro Live Activity; mirrors `DeskSessionLiveActivityManager` lifecycle (scene-active gate).
 @MainActor
-final class DeskSessionLiveActivityManager {
+final class PomodoroLiveActivityManager {
 
-    /// While Pomodoro has claimed Live Activity (`pomodoroLiveActivityVisible`), hide the desk activity so only one shows at a time (Pomodoro wins).
-    var shouldSuppressDeskLiveActivity: (() -> Bool)?
-
-    private var activity: Activity<DeskSessionActivityAttributes>?
-    private var lastPushedState: DeskSessionActivityAttributes.ContentState?
+    private var activity: Activity<PomodoroSessionActivityAttributes>?
+    private var lastPushedState: PomodoroSessionActivityAttributes.ContentState?
     private var sceneIsActive = false
     private var startTask: Task<Void, Never>?
 
-    func noteSceneBecameActive(syncing store: DeskSessionStore) {
+    func noteSceneBecameActive(syncing store: PomodoroStore) {
         sceneIsActive = true
         scheduleResync(store: store)
     }
@@ -30,14 +27,13 @@ final class DeskSessionLiveActivityManager {
         startTask = nil
     }
 
-    func deskSessionStoreDidPersist(_ store: DeskSessionStore) {
+    func pomodoroStoreDidUpdate(_ store: PomodoroStore) {
         scheduleResync(store: store)
     }
 
-    private func scheduleResync(store: DeskSessionStore) {
+    private func scheduleResync(store: PomodoroStore) {
         let state = contentState(from: store)
-        let suppressed = shouldSuppressDeskLiveActivity?() ?? false
-        let wantActivity = shouldKeepLiveActivityVisible(for: store) && !suppressed
+        let wantActivity = store.pomodoroLiveActivityVisible
 
         if !wantActivity {
             Task { await endActivityIfNeeded() }
@@ -55,12 +51,7 @@ final class DeskSessionLiveActivityManager {
         }
     }
 
-    /// Kept across pause until the user clears the session or countdown completes (`DeskSessionStore.deskLiveActivityVisible`).
-    private func shouldKeepLiveActivityVisible(for store: DeskSessionStore) -> Bool {
-        store.deskLiveActivityVisible
-    }
-
-    private func enqueueStartIfNeeded(store: DeskSessionStore, state: DeskSessionActivityAttributes.ContentState) {
+    private func enqueueStartIfNeeded(store: PomodoroStore, state: PomodoroSessionActivityAttributes.ContentState) {
         startTask?.cancel()
         startTask = Task { [weak self] in
             guard let self else { return }
@@ -68,13 +59,12 @@ final class DeskSessionLiveActivityManager {
             await Task.yield()
             guard !Task.isCancelled, self.sceneIsActive else { return }
             let latest = self.contentState(from: store)
-            guard self.shouldKeepLiveActivityVisible(for: store) else { return }
-            guard !(self.shouldSuppressDeskLiveActivity?() ?? false) else { return }
+            guard store.pomodoroLiveActivityVisible else { return }
             await self.startOrRefresh(with: latest)
         }
     }
 
-    private func startOrRefresh(with state: DeskSessionActivityAttributes.ContentState) async {
+    private func startOrRefresh(with state: PomodoroSessionActivityAttributes.ContentState) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         if let activity {
@@ -85,7 +75,7 @@ final class DeskSessionLiveActivityManager {
 
         do {
             let newActivity = try Activity.request(
-                attributes: DeskSessionActivityAttributes(),
+                attributes: PomodoroSessionActivityAttributes(),
                 content: .init(state: state, staleDate: nil),
                 pushType: nil
             )
@@ -96,7 +86,7 @@ final class DeskSessionLiveActivityManager {
         }
     }
 
-    private func pushUpdate(state: DeskSessionActivityAttributes.ContentState) async {
+    private func pushUpdate(state: PomodoroSessionActivityAttributes.ContentState) async {
         guard let activity else { return }
         await activity.update(.init(state: state, staleDate: nil))
         lastPushedState = state
@@ -110,14 +100,17 @@ final class DeskSessionLiveActivityManager {
         self.activity = nil
     }
 
-    private func contentState(from store: DeskSessionStore) -> DeskSessionActivityAttributes.ContentState {
-        DeskSessionActivityAttributes.ContentState(
-            postureRaw: store.posture.rawValue,
-            displayModeRaw: store.sessionDisplayMode.rawValue,
-            sessionPausedMs: store.sessionPausedMs,
-            segmentStartedAt: store.runStartedAt,
+    private func contentState(from store: PomodoroStore) -> PomodoroSessionActivityAttributes.ContentState {
+        let now = Date()
+        let running = store.running && store.remainingMs > 0
+        let startAt = running ? now : nil
+        let endAt = running ? now.addingTimeInterval(Double(store.remainingMs) / 1000) : nil
+        return PomodoroSessionActivityAttributes.ContentState(
+            phaseRaw: store.phase.rawValue,
             isRunning: store.running,
-            countdownDurationMs: store.countdownDurationMs
+            remainingMs: store.remainingMs,
+            countdownStartAt: startAt,
+            countdownEndsAt: endAt
         )
     }
 }

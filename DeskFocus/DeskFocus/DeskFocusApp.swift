@@ -40,6 +40,7 @@ private final class DeskFocusSessionBootstrap {
     let deskStore: DeskSessionStore
     let pomodoroStore: PomodoroStore
     let liveActivity = DeskSessionLiveActivityManager()
+    let pomodoroLiveActivity = PomodoroLiveActivityManager()
 
     init(modelContext: ModelContext) {
         let dailyLog = DailyLogStore(modelContext: modelContext)
@@ -47,6 +48,17 @@ private final class DeskFocusSessionBootstrap {
         pomodoroStore = PomodoroStore(modelContext: modelContext)
 
         deskStore.liveActivityManager = liveActivity
+        pomodoroStore.liveActivityManager = pomodoroLiveActivity
+
+        liveActivity.shouldSuppressDeskLiveActivity = { [weak self] in
+            guard let self else { return false }
+            return self.pomodoroStore.pomodoroLiveActivityVisible
+        }
+
+        pomodoroStore.onPomodoroLiveActivityEngagementChanged = { [weak self] in
+            guard let self else { return }
+            self.liveActivity.deskSessionStoreDidPersist(self.deskStore)
+        }
 
         deskStore.onStandingConfettiMilestone = { [weak self] in
             self?.confettiDriver.fire(.standing)
@@ -60,15 +72,24 @@ private final class DeskFocusSessionBootstrap {
 
     /// Widget / Live Activity intents run in the extension and enqueue commands in the shared app group.
     func applyPendingLiveActivityCommands() {
-        guard let command = DeskLiveActivityCommandBridge.dequeuePendingCommand() else { return }
-        switch command {
-        case .togglePauseResume:
-            deskStore.applyLiveActivityToggle()
-        case .clearSession:
-            if deskStore.running {
-                deskStore.pause()
+        if let command = DeskLiveActivityCommandBridge.dequeuePendingCommand() {
+            switch command {
+            case .togglePauseResume:
+                deskStore.applyLiveActivityToggle()
+            case .clearSession:
+                if deskStore.running {
+                    deskStore.pause()
+                }
+                deskStore.clearSession()
             }
-            deskStore.clearSession()
+        }
+        if let command = PomodoroLiveActivityCommandBridge.dequeuePendingCommand() {
+            switch command {
+            case .togglePauseResume:
+                pomodoroStore.applyLiveActivityToggle()
+            case .resetTimer:
+                pomodoroStore.applyLiveActivityReset()
+            }
         }
     }
 }
@@ -100,14 +121,17 @@ private struct DeskFocusRootView: View {
                         if scenePhase == .active {
                             bootstrap.applyPendingLiveActivityCommands()
                             bootstrap.liveActivity.noteSceneBecameActive(syncing: bootstrap.deskStore)
+                            bootstrap.pomodoroLiveActivity.noteSceneBecameActive(syncing: bootstrap.pomodoroStore)
                         }
                     }
                     .onChange(of: scenePhase) { _, phase in
                         if phase == .active {
                             bootstrap.applyPendingLiveActivityCommands()
                             bootstrap.liveActivity.noteSceneBecameActive(syncing: bootstrap.deskStore)
+                            bootstrap.pomodoroLiveActivity.noteSceneBecameActive(syncing: bootstrap.pomodoroStore)
                         } else if phase == .inactive || phase == .background {
                             bootstrap.liveActivity.noteSceneBecameInactive()
+                            bootstrap.pomodoroLiveActivity.noteSceneBecameInactive()
                         }
                     }
                 } else {

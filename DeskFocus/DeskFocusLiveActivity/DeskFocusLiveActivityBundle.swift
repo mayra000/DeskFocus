@@ -10,5 +10,6 @@ import WidgetKit
 struct DeskFocusLiveActivityBundle: WidgetBundle {
     var body: some Widget {
         DeskFocusLiveActivityWidget()
+        PomodoroLiveActivityWidget()
     }
 }
