@@ -35,6 +35,15 @@ final class DeskSessionStore {
     /// Fired after each **continuous** standing segment accumulates `STANDING_CONFETTI_INTERVAL_MS` while the desk timer is running.
     var onStandingConfettiMilestone: (() -> Void)?
 
+    /// Fired after each **continuous** sitting segment accumulates `SITTING_HOUR_MS` while the desk timer is running.
+    var onSittingHourConfettiMilestone: (() -> Void)?
+
+    /// Fired when the user pauses stopwatch mode after running at least one minute in the ended segment.
+    var onStopwatchSegmentPauseCelebrate: (() -> Void)?
+
+    /// Fired when the desk **countdown** reaches zero (not user clear).
+    var onDeskCountdownComplete: (() -> Void)?
+
     private(set) var tickNow: Date = .init()
 
     var sessionElapsedMs: Int {
@@ -54,9 +63,17 @@ final class DeskSessionStore {
     weak var liveActivityManager: DeskSessionLiveActivityManager?
 
     private static let notificationsPromptKey = "deskfocus.notifications.prompted"
+    private static let stopwatchPauseConfettiMinSegmentMs = 60_000
+
 
     /// Progress toward the next standing confetti milestone within the current standing stretch (resets when switching to sitting).
     private var standingConfettiAccumMs: Int = 0
+
+    /// Progress toward the next sitting-hour confetti milestone within the current sitting stretch (resets when switching to standing).
+    private var sittingHourConfettiAccumMs: Int = 0
+
+    /// Throttles streak retention notification rescheduling during standing reconciliation.
+    private var lastStreakRetentionRescheduleAt: Date?
 
     init(
         storage: DeskStorage,
@@ -154,6 +171,7 @@ final class DeskSessionStore {
         sessionPausedMs = 0
         runStartedAt = nil
         standingConfettiAccumMs = 0
+        sittingHourConfettiAccumMs = 0
         deskLiveActivityVisible = false
     }
 
@@ -167,6 +185,8 @@ final class DeskSessionStore {
 
         if posture == .sitting {
             standingConfettiAccumMs = 0
+        } else {
+            sittingHourConfettiAccumMs = 0
         }
 
         sessionPausedMs = 0
@@ -198,6 +218,7 @@ final class DeskSessionStore {
     func adjustStandingGoalMs(_ delta: Int) {
         standingGoalMs = clampStandingGoalMs(standingGoalMs + delta)
         persist()
+        refreshStreakRetentionNotificationsIfNeeded(at: Date())
     }
 
     /// Cycles wellness fact index (persisted in session); `factCount` is typically `deskWellnessFacts.count`.
@@ -226,6 +247,7 @@ final class DeskSessionStore {
         ticker = nil
 
         notificationScheduler.cancelAllDeskAlerts()
+        notificationScheduler.cancelStreakReminders()
 
         dailyLogStore.deleteAllLogs()
 
@@ -234,6 +256,7 @@ final class DeskSessionStore {
         defaults.removeObject(forKey: "desktimer:last-prune")
 
         standingConfettiAccumMs = 0
+        sittingHourConfettiAccumMs = 0
 
         applySavedSnapshot(SessionState.default)
         persist()
@@ -245,6 +268,7 @@ final class DeskSessionStore {
             refreshDeskNotifications(reference: Date())
         }
         tickNow = Date()
+        refreshStreakRetentionNotificationsIfNeeded(at: Date())
     }
 
     // MARK: - Reconcile
@@ -257,8 +281,11 @@ final class DeskSessionStore {
         }
 
         if watermark < now {
+            let deltaMs = Int((now.timeIntervalSince(watermark) * 1000.0).rounded())
             if posture == .standing {
-                feedStandingConfetti(deltaMs: Int((now.timeIntervalSince(watermark) * 1000.0).rounded()))
+                feedStandingConfetti(deltaMs: deltaMs)
+            } else if posture == .sitting {
+                feedSittingHourConfetti(deltaMs: deltaMs)
             }
             dailyLogStore.addPostureDelta(from: watermark, to: now, posture: posture)
             addWeeklySittingMs(from: watermark, to: now)
@@ -270,6 +297,7 @@ final class DeskSessionStore {
             return
         }
 
+        maybeRescheduleStreakRetentionNotifications(at: now)
         persist()
     }
 
@@ -314,9 +342,17 @@ final class DeskSessionStore {
             return
         }
 
-        sessionPausedMs += Int((anchor.timeIntervalSince(segmentStart) * 1000.0).rounded())
+        let segmentMs = Int((anchor.timeIntervalSince(segmentStart) * 1000.0).rounded())
+        sessionPausedMs += segmentMs
         running = false
         runStartedAt = nil
+
+        if sessionDisplayMode == .stopwatch, segmentMs >= Self.stopwatchPauseConfettiMinSegmentMs {
+            // Long sitting segments already celebrate via `onSittingHourConfettiMilestone`; avoid a second burst on pause.
+            if posture == .standing || segmentMs < SITTING_HOUR_MS {
+                onStopwatchSegmentPauseCelebrate?()
+            }
+        }
 
         notificationScheduler.cancelAllDeskAlerts()
         persist()
@@ -334,6 +370,8 @@ final class DeskSessionStore {
         notificationScheduler.cancelAllDeskAlerts()
 
         tickNow = now
+
+        onDeskCountdownComplete?()
 
         persist()
     }
@@ -380,6 +418,11 @@ final class DeskSessionStore {
         return sessionPausedMs + Int((delta * 1000.0).rounded())
     }
 
+    /// Elapsed desk-session ms at `reference` (running uses segment + pause; paused returns `sessionPausedMs`).
+    func elapsedMs(at reference: Date) -> Int {
+        computeSessionElapsed(at: reference)
+    }
+
     // MARK: - Persistence
 
     private func currentSnapshot() -> SessionState {
@@ -411,6 +454,7 @@ final class DeskSessionStore {
         weekKey = state.weekKey
         deskLiveActivityVisible = state.deskLiveActivityVisible
         standingConfettiAccumMs = 0
+        sittingHourConfettiAccumMs = 0
         ticker?.cancel()
         ticker = nil
         lastReconcileAt = running ? state.runStartedAt ?? Date() : nil
@@ -455,5 +499,32 @@ final class DeskSessionStore {
             standingConfettiAccumMs -= STANDING_CONFETTI_INTERVAL_MS
             onStandingConfettiMilestone?()
         }
+    }
+
+    private func feedSittingHourConfetti(deltaMs: Int) {
+        guard deltaMs > 0 else { return }
+        sittingHourConfettiAccumMs += deltaMs
+        while sittingHourConfettiAccumMs >= SITTING_HOUR_MS {
+            sittingHourConfettiAccumMs -= SITTING_HOUR_MS
+            onSittingHourConfettiMilestone?()
+        }
+    }
+
+    private func maybeRescheduleStreakRetentionNotifications(at now: Date) {
+        guard posture == .standing, running else { return }
+        if let last = lastStreakRetentionRescheduleAt, now.timeIntervalSince(last) < 45 {
+            return
+        }
+        lastStreakRetentionRescheduleAt = now
+        refreshStreakRetentionNotificationsIfNeeded(at: now)
+    }
+
+    private func refreshStreakRetentionNotificationsIfNeeded(at date: Date) {
+        let todayStanding = dailyLogStore.todayLog(for: date).standingMs
+        notificationScheduler.rescheduleStreakReminders(
+            now: date,
+            standingGoalMs: standingGoalMs,
+            todayStandingMs: todayStanding
+        )
     }
 }

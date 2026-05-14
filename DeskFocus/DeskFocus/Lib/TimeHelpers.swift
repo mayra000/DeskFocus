@@ -13,6 +13,8 @@ let COUNTDOWN_STEP_MS = 5 * 60 * 1000
 let DEFAULT_COUNTDOWN_MS = 30 * 60 * 1000
 let DEFAULT_STANDING_GOAL_MS = 60 * 60 * 1000
 let STANDING_CONFETTI_INTERVAL_MS = 30 * 60 * 1000
+/// Continuous sitting while the desk timer is running; confetti celebrates each full hour (sitting “hour” reminders).
+let SITTING_HOUR_MS = 60 * 60 * 1000
 
 private let standingMinMs = 5 * 60 * 1000
 private let standingMaxMs = 8 * 60 * 60 * 1000

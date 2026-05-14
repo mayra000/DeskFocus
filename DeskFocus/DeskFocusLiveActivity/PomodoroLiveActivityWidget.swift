@@ -220,14 +220,10 @@ private enum PomodoroLiveTimerFormatting {
     }
 
     private static func displayRemainingMs(state: PomodoroSessionActivityAttributes.ContentState, now: Date) -> Int {
-        guard state.isRunning, let start = state.countdownStartAt, let end = state.countdownEndsAt, end > start else {
+        guard state.isRunning, let end = state.countdownEndsAt, end > now else {
             return max(0, state.remainingMs)
         }
-        let total = end.timeIntervalSince(start)
-        guard total > 0 else { return 0 }
-        let elapsed = now.timeIntervalSince(start)
-        let frac = min(1, max(0, elapsed / total))
-        return max(0, Int((Double(state.remainingMs) * (1 - frac)).rounded()))
+        return max(0, Int((end.timeIntervalSince(now) * 1000.0).rounded()))
     }
 
     private static func formatMsCompact(_ ms: Int) -> String {

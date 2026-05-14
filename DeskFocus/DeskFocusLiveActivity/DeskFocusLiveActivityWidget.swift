@@ -177,7 +177,9 @@ private struct LiveActivityLargeTimer: View {
             } else if let range = state.stopwatchTimerRange() {
                 Text(timerInterval: range, countsDown: false, showsHours: true)
             } else {
-                Text(LiveActivityTimerFormatting.displayString(state: state, now: Date()))
+                TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+                    Text(LiveActivityTimerFormatting.displayString(state: state, now: timeline.date))
+                }
             }
         }
         .font(.system(size: kTimerFontSize, weight: .bold, design: .rounded))
@@ -193,15 +195,20 @@ private struct LiveActivityCompactTimer: View {
     let state: DeskSessionActivityAttributes.ContentState
 
     var body: some View {
-        // Avoid Text(timerInterval:) in compact — it often expands the island to full width.
-        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-            Text(LiveActivityTimerFormatting.compactDisplayString(state: state, now: timeline.date))
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
+        // Island time is pushed as plain text each update: `TimelineView` often freezes mid-run in this context.
+        Group {
+            if !state.islandCompactTime.isEmpty {
+                Text(state.islandCompactTime)
+            } else {
+                TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+                    Text(LiveActivityTimerFormatting.compactDisplayString(state: state, now: timeline.date))
+                }
+            }
         }
+        .font(.system(size: 11, weight: .bold, design: .rounded))
+        .monospacedDigit()
+        .foregroundStyle(.white)
+        .lineLimit(1)
         .fixedSize(horizontal: true, vertical: false)
     }
 }
@@ -211,16 +218,30 @@ private struct LiveActivityIslandExpandedSummary: View {
     let state: DeskSessionActivityAttributes.ContentState
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-            HStack(spacing: 8) {
-                Image(systemName: "stopwatch")
-                    .font(.caption.weight(.semibold))
-                Text(LiveActivityTimerFormatting.displayString(state: state, now: timeline.date))
-                    .font(.caption.weight(.bold))
-                    .monospacedDigit()
+        Group {
+            if !state.islandExpandedTime.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "stopwatch")
+                        .font(.caption.weight(.semibold))
+                    Text(state.islandExpandedTime)
+                        .font(.caption.weight(.bold))
+                        .monospacedDigit()
+                }
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: true, vertical: false)
+            } else {
+                TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+                    HStack(spacing: 8) {
+                        Image(systemName: "stopwatch")
+                            .font(.caption.weight(.semibold))
+                        Text(LiveActivityTimerFormatting.displayString(state: state, now: timeline.date))
+                            .font(.caption.weight(.bold))
+                            .monospacedDigit()
+                    }
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: true, vertical: false)
+                }
             }
-            .foregroundStyle(.white)
-            .fixedSize(horizontal: true, vertical: false)
         }
     }
 }

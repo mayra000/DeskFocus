@@ -13,6 +13,8 @@ enum ConfettiPalette {
     case standing
     /// Completed Pomodoro — warm reds and oranges.
     case pomodoro
+    /// Desk countdown reached zero.
+    case countdown
 
     fileprivate var uiColors: [UIColor] {
         switch self {
@@ -31,6 +33,14 @@ enum ConfettiPalette {
                 UIColor(red: 1, green: 0.55, blue: 0.12, alpha: 1),
                 UIColor(red: 0.92, green: 0.32, blue: 0.38, alpha: 1),
                 UIColor(red: 0.98, green: 0.48, blue: 0.22, alpha: 1),
+            ]
+        case .countdown:
+            return [
+                UIColor(red: 0.95, green: 0.82, blue: 0.35, alpha: 1),
+                UIColor(red: 0.28, green: 0.72, blue: 0.62, alpha: 1),
+                UIColor(red: 0.45, green: 0.62, blue: 0.95, alpha: 1),
+                UIColor(red: 0.55, green: 0.88, blue: 0.48, alpha: 1),
+                UIColor(red: 0.98, green: 0.65, blue: 0.38, alpha: 1),
             ]
         }
     }

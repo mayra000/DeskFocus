@@ -11,10 +11,20 @@ import Foundation
 @MainActor
 final class PomodoroLiveActivityManager {
 
+    /// Called immediately before requesting a Pomodoro Live Activity — end desk activities and refresh the desk manager’s references.
+    var beforeRequestingPomodoroLiveActivity: (() async -> Void)?
+
     private var activity: Activity<PomodoroSessionActivityAttributes>?
     private var lastPushedState: PomodoroSessionActivityAttributes.ContentState?
     private var sceneIsActive = false
     private var startTask: Task<Void, Never>?
+    /// Superseded starter tasks can overlap `Activity.request`; only the newest nonce wins.
+    private var exclusiveStartNonce = 0
+
+    func resetTrackedActivityAfterExternalTermination() {
+        activity = nil
+        lastPushedState = nil
+    }
 
     func noteSceneBecameActive(syncing store: PomodoroStore) {
         sceneIsActive = true
@@ -52,26 +62,41 @@ final class PomodoroLiveActivityManager {
     }
 
     private func enqueueStartIfNeeded(store: PomodoroStore, state: PomodoroSessionActivityAttributes.ContentState) {
+        exclusiveStartNonce += 1
+        let nonce = exclusiveStartNonce
         startTask?.cancel()
         startTask = Task { [weak self] in
             guard let self else { return }
             await Task.yield()
             await Task.yield()
             guard !Task.isCancelled, self.sceneIsActive else { return }
+            guard nonce == self.exclusiveStartNonce else { return }
             let latest = self.contentState(from: store)
             guard store.pomodoroLiveActivityVisible else { return }
-            await self.startOrRefresh(with: latest)
+            await self.startOrRefresh(with: latest, nonce: nonce)
         }
     }
 
-    private func startOrRefresh(with state: PomodoroSessionActivityAttributes.ContentState) async {
+    private func startOrRefresh(with state: PomodoroSessionActivityAttributes.ContentState, nonce: Int) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         if let activity {
+            await LiveActivityDuplicateTeardown.endPomodoroSessionActivities(except: activity)
             await activity.update(.init(state: state, staleDate: nil))
             lastPushedState = state
             return
         }
+
+        guard nonce == exclusiveStartNonce else { return }
+
+        await beforeRequestingPomodoroLiveActivity?()
+
+        guard nonce == exclusiveStartNonce else { return }
+
+        await LiveActivityDuplicateTeardown.endAllPomodoroSessionActivities()
+        self.activity = nil
+
+        guard nonce == exclusiveStartNonce else { return }
 
         do {
             let newActivity = try Activity.request(
@@ -79,6 +104,10 @@ final class PomodoroLiveActivityManager {
                 content: .init(state: state, staleDate: nil),
                 pushType: nil
             )
+            guard nonce == exclusiveStartNonce else {
+                await newActivity.end(nil, dismissalPolicy: .immediate)
+                return
+            }
             activity = newActivity
             lastPushedState = state
         } catch {
@@ -88,6 +117,7 @@ final class PomodoroLiveActivityManager {
 
     private func pushUpdate(state: PomodoroSessionActivityAttributes.ContentState) async {
         guard let activity else { return }
+        await LiveActivityDuplicateTeardown.endPomodoroSessionActivities(except: activity)
         await activity.update(.init(state: state, staleDate: nil))
         lastPushedState = state
     }
@@ -95,16 +125,17 @@ final class PomodoroLiveActivityManager {
     private func endActivityIfNeeded() async {
         startTask?.cancel()
         startTask = nil
-        guard let activity else { return }
-        await activity.end(nil, dismissalPolicy: .immediate)
-        self.activity = nil
+        await LiveActivityDuplicateTeardown.endAllPomodoroSessionActivities()
+        activity = nil
     }
 
     private func contentState(from store: PomodoroStore) -> PomodoroSessionActivityAttributes.ContentState {
         let now = Date()
         let running = store.running && store.remainingMs > 0
-        let startAt = running ? now : nil
-        let endAt = running ? now.addingTimeInterval(Double(store.remainingMs) / 1000) : nil
+        let span = TimeInterval(store.remainingMs) / 1000
+        /// One stable wall-clock interval per push; extension animates locally (avoids re-basing every tick).
+        let endAt = running ? now.addingTimeInterval(span) : nil
+        let startAt = running ? endAt?.addingTimeInterval(-span) : nil
         return PomodoroSessionActivityAttributes.ContentState(
             phaseRaw: store.phase.rawValue,
             isRunning: store.running,

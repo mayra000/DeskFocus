@@ -10,6 +10,16 @@ import SwiftData
 import SwiftUI
 import UIKit
 
+@MainActor
+private func scheduleConfettiBurst(driver: ConfettiBurstDriver, palette: ConfettiPalette) {
+    Task { @MainActor in
+        // Two yields: bootstrap + `ConfettiView` host attach often land on the next frame(s).
+        await Task.yield()
+        await Task.yield()
+        driver.fire(palette)
+    }
+}
+
 /// SwiftData bundle at an explicit Application Support URL so a damaged default Core Data/WAL file
 /// cannot deadlock launch compared to the default hashed store location.
 private enum DeskFocusModelContainerFactory {
@@ -55,16 +65,42 @@ private final class DeskFocusSessionBootstrap {
             return self.pomodoroStore.pomodoroLiveActivityVisible
         }
 
+        liveActivity.beforeRequestingDeskLiveActivity = { [weak self] in
+            guard let self else { return }
+            await LiveActivityDuplicateTeardown.endAllPomodoroSessionActivities()
+            self.pomodoroLiveActivity.resetTrackedActivityAfterExternalTermination()
+        }
+
+        pomodoroLiveActivity.beforeRequestingPomodoroLiveActivity = { [weak self] in
+            guard let self else { return }
+            await LiveActivityDuplicateTeardown.endAllDeskSessionActivities()
+            self.liveActivity.resetTrackedActivityAfterExternalTermination()
+        }
+
         pomodoroStore.onPomodoroLiveActivityEngagementChanged = { [weak self] in
             guard let self else { return }
             self.liveActivity.deskSessionStoreDidPersist(self.deskStore)
         }
 
         deskStore.onStandingConfettiMilestone = { [weak self] in
-            self?.confettiDriver.fire(.standing)
+            guard let self else { return }
+            scheduleConfettiBurst(driver: self.confettiDriver, palette: .standing)
+        }
+        deskStore.onSittingHourConfettiMilestone = { [weak self] in
+            guard let self else { return }
+            scheduleConfettiBurst(driver: self.confettiDriver, palette: .countdown)
+        }
+        deskStore.onStopwatchSegmentPauseCelebrate = { [weak self] in
+            guard let self else { return }
+            scheduleConfettiBurst(driver: self.confettiDriver, palette: .countdown)
+        }
+        deskStore.onDeskCountdownComplete = { [weak self] in
+            guard let self else { return }
+            scheduleConfettiBurst(driver: self.confettiDriver, palette: .countdown)
         }
         pomodoroStore.onPomodoroComplete = { [weak self] in
-            self?.confettiDriver.fire(.pomodoro)
+            guard let self else { return }
+            scheduleConfettiBurst(driver: self.confettiDriver, palette: .pomodoro)
         }
 
         applyPendingLiveActivityCommands()

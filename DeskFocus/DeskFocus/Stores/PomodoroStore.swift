@@ -67,6 +67,10 @@ final class PomodoroStore {
     private let defaults: UserDefaults
 
     private var lastTickAt: Date?
+
+    /// Whole seconds of `remainingMs` last pushed to Live Activity while running (throttle ~1 Hz).
+    private var lastLiveActivitySyncedRemainingWholeSeconds: Int?
+
     private var ticker: AnyCancellable?
 
     init(modelContext: ModelContext, defaults: UserDefaults = .standard) {
@@ -164,6 +168,10 @@ final class PomodoroStore {
 
     func handleForeground() {
         reconcileTick(at: Date())
+        if running {
+            lastLiveActivitySyncedRemainingWholeSeconds = nil
+            syncLiveActivity()
+        }
     }
 
     private func startTimer() {
@@ -194,6 +202,23 @@ final class PomodoroStore {
     }
 
     private func syncLiveActivity() {
+        if !pomodoroLiveActivityVisible {
+            lastLiveActivitySyncedRemainingWholeSeconds = nil
+            liveActivityManager?.pomodoroStoreDidUpdate(self)
+            return
+        }
+
+        if !running {
+            lastLiveActivitySyncedRemainingWholeSeconds = nil
+            liveActivityManager?.pomodoroStoreDidUpdate(self)
+            return
+        }
+
+        let wholeSeconds = remainingMs / 1_000
+        if lastLiveActivitySyncedRemainingWholeSeconds == wholeSeconds {
+            return
+        }
+        lastLiveActivitySyncedRemainingWholeSeconds = wholeSeconds
         liveActivityManager?.pomodoroStoreDidUpdate(self)
     }
 
