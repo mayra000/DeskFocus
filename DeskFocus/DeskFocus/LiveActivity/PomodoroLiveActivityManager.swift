@@ -43,7 +43,7 @@ final class PomodoroLiveActivityManager {
 
     private func scheduleResync(store: PomodoroStore) {
         let state = contentState(from: store)
-        let wantActivity = store.pomodoroLiveActivityVisible
+        let wantActivity = store.pomodoroLiveActivityVisible && store.running
 
         if !wantActivity {
             Task { await endActivityIfNeeded() }
@@ -72,7 +72,7 @@ final class PomodoroLiveActivityManager {
             guard !Task.isCancelled, self.sceneIsActive else { return }
             guard nonce == self.exclusiveStartNonce else { return }
             let latest = self.contentState(from: store)
-            guard store.pomodoroLiveActivityVisible else { return }
+            guard store.pomodoroLiveActivityVisible, store.running else { return }
             await self.startOrRefresh(with: latest, nonce: nonce)
         }
     }

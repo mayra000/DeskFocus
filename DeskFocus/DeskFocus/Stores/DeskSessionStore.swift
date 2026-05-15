@@ -29,7 +29,7 @@ final class DeskSessionStore {
     var weeklySittingMs: Int
     var weekKey: String
 
-    /// Drives Live Activity visibility across pause; cleared on explicit clear / countdown end.
+    /// Drives Live Activity: true while the desk timer is running; cleared on pause / clear / countdown end.
     var deskLiveActivityVisible: Bool
 
     /// Fired after each **continuous** standing segment accumulates `STANDING_CONFETTI_INTERVAL_MS` while the desk timer is running.
@@ -98,6 +98,9 @@ final class DeskSessionStore {
         weeklySittingMs = snapshot.weeklySittingMs
         weekKey = snapshot.weekKey
         deskLiveActivityVisible = snapshot.deskLiveActivityVisible
+        if !running {
+            deskLiveActivityVisible = false
+        }
 
         if running {
             lastReconcileAt = runStartedAt ?? Date()
@@ -346,6 +349,7 @@ final class DeskSessionStore {
         sessionPausedMs += segmentMs
         running = false
         runStartedAt = nil
+        deskLiveActivityVisible = false
 
         if sessionDisplayMode == .stopwatch, segmentMs >= Self.stopwatchPauseConfettiMinSegmentMs {
             // Long sitting segments already celebrate via `onSittingHourConfettiMilestone`; avoid a second burst on pause.
@@ -453,6 +457,9 @@ final class DeskSessionStore {
         weeklySittingMs = state.weeklySittingMs
         weekKey = state.weekKey
         deskLiveActivityVisible = state.deskLiveActivityVisible
+        if !running {
+            deskLiveActivityVisible = false
+        }
         standingConfettiAccumMs = 0
         sittingHourConfettiAccumMs = 0
         ticker?.cancel()

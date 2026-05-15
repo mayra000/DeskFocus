@@ -72,9 +72,9 @@ final class DeskSessionLiveActivityManager {
         }
     }
 
-    /// Kept across pause until the user clears the session or countdown completes (`DeskSessionStore.deskLiveActivityVisible`).
+    /// Live Activity only while the desk timer is running (`deskLiveActivityVisible` is cleared on pause).
     private func shouldKeepLiveActivityVisible(for store: DeskSessionStore) -> Bool {
-        store.deskLiveActivityVisible
+        store.deskLiveActivityVisible && store.running
     }
 
     private func enqueueStartIfNeeded(store: DeskSessionStore, state: DeskSessionActivityAttributes.ContentState) {

@@ -59,6 +59,7 @@ private final class DeskFocusSessionBootstrap {
 
         deskStore.liveActivityManager = liveActivity
         pomodoroStore.liveActivityManager = pomodoroLiveActivity
+        DeskFocusLiveActivityDisconnectHandler.shared.register(desk: liveActivity, pomodoro: pomodoroLiveActivity)
 
         liveActivity.shouldSuppressDeskLiveActivity = { [weak self] in
             guard let self else { return false }
@@ -244,6 +245,7 @@ private struct DeskFocusLaunchShell: View {
 
 @main
 struct DeskFocusApp: App {
+    @UIApplicationDelegateAdaptor(DeskFocusAppDelegate.self) private var appDelegate
 
     init() {
         UIWindow.appearance().backgroundColor = LaunchBrandGradient.uiWindowFallback

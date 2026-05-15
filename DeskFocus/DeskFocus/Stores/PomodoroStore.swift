@@ -26,7 +26,7 @@ final class PomodoroStore {
     var pomodorosCompleted: Int = 0
     var activeTaskId: String?
 
-    /// Mirrors desk `deskLiveActivityVisible`: true after the user starts Pomodoro until reset or phase tab change.
+    /// True while a Pomodoro round is actively running (timer ticking); cleared on pause, reset, or phase change.
     var pomodoroLiveActivityVisible = false
 
     weak var liveActivityManager: PomodoroLiveActivityManager?
@@ -195,6 +195,11 @@ final class PomodoroStore {
     }
 
     private func pauseTimer() {
+        let wasEngaged = pomodoroLiveActivityVisible
+        if wasEngaged {
+            pomodoroLiveActivityVisible = false
+            onPomodoroLiveActivityEngagementChanged?()
+        }
         ticker?.cancel()
         ticker = nil
         running = false
