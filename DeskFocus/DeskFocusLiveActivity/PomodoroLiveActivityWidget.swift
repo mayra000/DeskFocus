@@ -27,12 +27,14 @@ struct PomodoroLiveActivityWidget: Widget {
                     .fixedSize(horizontal: true, vertical: false)
             } compactTrailing: {
                 PomodoroCompactTimer(state: context.state)
-            } minimal: {
+            }             minimal: {
                 Image(systemName: "timer")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
             }
         }
+        .disfavoredLocations([.carPlay], for: [.systemSmall])
+        .disfavoredLocations([.carPlay], for: [.accessoryInline, .accessoryRectangular, .accessoryCircular])
     }
 }
 
