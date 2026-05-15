@@ -18,6 +18,7 @@ struct WeeklySummaryView: View {
         computeGamificationSnapshot(
             logs: postureLogs,
             standingGoalMs: deskStore.standingGoalMs,
+            standingGoalSnapshotsByDayKey: deskStore.standingGoalSnapshotsByDayKey,
             now: deskStore.tickNow
         )
     }

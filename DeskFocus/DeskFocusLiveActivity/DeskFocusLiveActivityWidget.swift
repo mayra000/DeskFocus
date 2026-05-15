@@ -27,7 +27,7 @@ struct DeskFocusLiveActivityWidget: Widget {
                     .fixedSize(horizontal: true, vertical: false)
             } compactTrailing: {
                 LiveActivityCompactTimer(state: context.state)
-            }             minimal: {
+            } minimal: {
                 Image(systemName: "stopwatch")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)

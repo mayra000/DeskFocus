@@ -21,7 +21,8 @@ struct StandingWeekBadgesView: View {
         getWorkweekStandingBadges(
             now: deskStore.tickNow,
             logs: postureLogs,
-            goalMs: deskStore.standingGoalMs
+            standingGoalMs: deskStore.standingGoalMs,
+            standingGoalSnapshotsByDayKey: deskStore.standingGoalSnapshotsByDayKey
         )
     }
 
@@ -38,7 +39,8 @@ struct StandingWeekBadgesView: View {
                         dayKey: day.dayKey,
                         badgeKind: day.kind,
                         sittingMs: log?.sittingMs ?? 0,
-                        standingMs: log?.standingMs ?? 0
+                        standingMs: log?.standingMs ?? 0,
+                        goalMs: day.goalMsApplied
                     )
                 } label: {
                     badgeCell(day)
@@ -52,7 +54,6 @@ struct StandingWeekBadgesView: View {
         .sheet(item: $selectedDaySummary) { selection in
             WeekDayPostureSummarySheet(
                 selection: selection,
-                goalMs: deskStore.standingGoalMs,
                 posture: deskStore.posture
             )
             .presentationDetents([.height(260)])
@@ -69,7 +70,7 @@ struct StandingWeekBadgesView: View {
                     .background(Circle().fill(circleFill(for: day.kind)))
                     .frame(width: diameter, height: diameter)
 
-                if day.kind == .partial, deskStore.standingGoalMs > 0 {
+                if day.kind == .partial, day.goalMsApplied > 0 {
                     Circle()
                         .trim(from: 0, to: CGFloat(day.ratio))
                         .stroke(DeskTheme.primary.opacity(0.85), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
@@ -112,7 +113,7 @@ struct StandingWeekBadgesView: View {
     }
 
     private func accessibilityLabel(for day: WorkweekBadgeDay) -> String {
-        let goal = formatDeskDuration(ms: deskStore.standingGoalMs)
+        let goal = formatDeskDuration(ms: day.goalMsApplied)
         switch day.kind {
         case .future:
             return "\(day.labelShort), upcoming workday"
@@ -134,13 +135,13 @@ private struct WeekDaySummarySelection: Identifiable {
     let badgeKind: WorkweekBadgeKind
     let sittingMs: Int
     let standingMs: Int
+    let goalMs: Int
 }
 
 private struct WeekDayPostureSummarySheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let selection: WeekDaySummarySelection
-    let goalMs: Int
     let posture: Posture
 
     var body: some View {
@@ -191,12 +192,13 @@ private struct WeekDayPostureSummarySheet: View {
     }
 
     private func formattedDayHeader(_ dayKey: String) -> String {
-        guard let date = dateFromGregorianDayKey(dayKey) else { return dayKey }
+        guard let date = date(fromGregorianDayKey: dayKey) else { return dayKey }
         return date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 
     private var goalCaption: String? {
         let standing = selection.standingMs
+        let goalMs = selection.goalMs
         switch selection.badgeKind {
         case .future:
             return "Time for this day will appear once the day starts."
@@ -220,19 +222,6 @@ private struct WeekDayPostureSummarySheet: View {
             return "Below your standing goal for this day."
         }
     }
-}
-
-private func dateFromGregorianDayKey(_ key: String) -> Date? {
-    let parts = key.split(separator: "-")
-    guard parts.count == 3,
-          let y = Int(parts[0]),
-          let m = Int(parts[1]),
-          let d = Int(parts[2]) else { return nil }
-    var components = DateComponents()
-    components.year = y
-    components.month = m
-    components.day = d
-    return Calendar.current.date(from: components)
 }
 
 #Preview {

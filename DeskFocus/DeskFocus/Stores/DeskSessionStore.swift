@@ -24,6 +24,8 @@ final class DeskSessionStore {
     var sessionDisplayMode: SessionDisplayMode
     var countdownDurationMs: Int
     var standingGoalMs: Int
+    /// Frozen goal per calendar `dayKey` for Mon–Thu badge math; today's key refresh on save.
+    var standingGoalSnapshotsByDayKey: [String: Int]
     var factIndex: Int
 
     var weeklySittingMs: Int
@@ -94,13 +96,12 @@ final class DeskSessionStore {
         sessionDisplayMode = snapshot.sessionDisplayMode
         countdownDurationMs = clampCountdownMs(snapshot.countdownDurationMs)
         standingGoalMs = clampStandingGoalMs(snapshot.standingGoalMs)
+        standingGoalSnapshotsByDayKey = snapshot.standingGoalSnapshotsByDayKey
+            .mapValues { clampStandingGoalMs($0) }
         factIndex = snapshot.factIndex
         weeklySittingMs = snapshot.weeklySittingMs
         weekKey = snapshot.weekKey
         deskLiveActivityVisible = snapshot.deskLiveActivityVisible
-        if !running {
-            deskLiveActivityVisible = false
-        }
 
         if running {
             lastReconcileAt = runStartedAt ?? Date()
@@ -272,6 +273,9 @@ final class DeskSessionStore {
         }
         tickNow = Date()
         refreshStreakRetentionNotificationsIfNeeded(at: Date())
+        if !running {
+            persist()
+        }
     }
 
     // MARK: - Reconcile
@@ -349,7 +353,6 @@ final class DeskSessionStore {
         sessionPausedMs += segmentMs
         running = false
         runStartedAt = nil
-        deskLiveActivityVisible = false
 
         if sessionDisplayMode == .stopwatch, segmentMs >= Self.stopwatchPauseConfettiMinSegmentMs {
             // Long sitting segments already celebrate via `onSittingHourConfettiMilestone`; avoid a second burst on pause.
@@ -427,6 +430,12 @@ final class DeskSessionStore {
         computeSessionElapsed(at: reference)
     }
 
+    /// Standing time already written to SwiftData for the calendar day containing `reference`.
+    /// Used for desk fill; combine with `tickNow` / `standingGoalMs` so edits to today’s goal redraw the backdrop.
+    func loggedStandingMsForCalendarDay(containing reference: Date) -> Int {
+        dailyLogStore.todayLog(for: reference).standingMs
+    }
+
     // MARK: - Persistence
 
     private func currentSnapshot() -> SessionState {
@@ -441,6 +450,7 @@ final class DeskSessionStore {
             sessionDisplayMode: sessionDisplayMode,
             countdownDurationMs: countdownDurationMs,
             standingGoalMs: standingGoalMs,
+            standingGoalSnapshotsByDayKey: standingGoalSnapshotsByDayKey,
             deskLiveActivityVisible: deskLiveActivityVisible
         )
     }
@@ -453,13 +463,12 @@ final class DeskSessionStore {
         sessionDisplayMode = state.sessionDisplayMode
         countdownDurationMs = clampCountdownMs(state.countdownDurationMs)
         standingGoalMs = clampStandingGoalMs(state.standingGoalMs)
+        standingGoalSnapshotsByDayKey = state.standingGoalSnapshotsByDayKey
+            .mapValues { clampStandingGoalMs($0) }
         factIndex = state.factIndex
         weeklySittingMs = state.weeklySittingMs
         weekKey = state.weekKey
         deskLiveActivityVisible = state.deskLiveActivityVisible
-        if !running {
-            deskLiveActivityVisible = false
-        }
         standingConfettiAccumMs = 0
         sittingHourConfettiAccumMs = 0
         ticker?.cancel()
@@ -472,8 +481,22 @@ final class DeskSessionStore {
     }
 
     private func persist() {
+        refreshStandingGoalSnapshotForToday(at: tickNow)
+        pruneStandingGoalSnapshots(around: tickNow)
+
         storage.save(currentSnapshot())
         liveActivityManager?.deskSessionStoreDidPersist(self)
+    }
+
+    /// Records the user's current standing goal against **today** so earlier weekdays retain their own thresholds on future edits.
+    private func refreshStandingGoalSnapshotForToday(at now: Date) {
+        standingGoalSnapshotsByDayKey[dayKey(for: now)] = standingGoalMs
+    }
+
+    private func pruneStandingGoalSnapshots(around now: Date, keepDays: Int = 200) {
+        guard let cutoff = Calendar.current.date(byAdding: .day, value: -keepDays, to: now) else { return }
+        let cutoffKey = dayKey(for: cutoff)
+        standingGoalSnapshotsByDayKey = standingGoalSnapshotsByDayKey.filter { $0.key >= cutoffKey }
     }
 
     private func refreshDeskNotifications(reference anchor: Date) {

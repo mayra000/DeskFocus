@@ -100,22 +100,11 @@ struct DeskView: View {
     }
 
     /// 0 → empty deeper fill at bottom; 1 → full bleed deep.
-    /// Sitting uses a fixed one-hour scale (`postureFillRatio`) so the backdrop matches “sitting hour” pacing
-    /// instead of the countdown picker / cleared countdown (`countdownDurationMs` could be a short timer or 0).
+    /// Today’s **logged** standing vs **current** standing goal. Uses the live goal (not frozen weekday snapshots), so e.g. 1h logged / 2h goal → half fill.
     private var deskTimerFillFraction: CGFloat {
-        let elapsedMs = deskStore.sessionElapsedMs
-        if deskStore.posture == .sitting {
-            return CGFloat(postureFillRatio(elapsedMs: elapsedMs))
-        }
-        let denominator: Int
-        switch deskStore.sessionDisplayMode {
-        case .countdown:
-            let d = deskStore.countdownDurationMs
-            denominator = d > 0 ? d : max(1, deskStore.standingGoalMs)
-        case .stopwatch:
-            denominator = max(1, deskStore.standingGoalMs)
-        }
-        return CGFloat(min(1, Double(elapsedMs) / Double(denominator)))
+        let stoodMs = deskStore.loggedStandingMsForCalendarDay(containing: deskStore.tickNow)
+        let goalMs = max(1, deskStore.standingGoalMs)
+        return CGFloat(min(1.0, Double(max(0, stoodMs)) / Double(goalMs)))
     }
 
     // MARK: - Main card

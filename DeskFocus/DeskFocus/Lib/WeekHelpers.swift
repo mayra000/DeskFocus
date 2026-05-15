@@ -14,6 +14,20 @@ func dayKey(for date: Date) -> String {
     return String(format: "%04d-%02d-%02d", y, m, d)
 }
 
+/// Parses `dayKey(for:)`-style Gregorian strings in the user's current timezone.
+func date(fromGregorianDayKey key: String) -> Date? {
+    let parts = key.split(separator: "-")
+    guard parts.count == 3,
+          let y = Int(parts[0]),
+          let m = Int(parts[1]),
+          let d = Int(parts[2]) else { return nil }
+    var components = DateComponents()
+    components.year = y
+    components.month = m
+    components.day = d
+    return Calendar.current.date(from: components)
+}
+
 /// Start of the calendar week (Monday 00:00) containing `date`, using `Calendar(identifier: .iso8601)` (Monday-first weeks).
 func mondayOf(_ date: Date) -> Date {
     let cal = Calendar(identifier: .iso8601)
