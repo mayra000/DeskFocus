@@ -35,11 +35,20 @@ struct StandingWeekBadgesView: View {
             ForEach(badges) { day in
                 Button {
                     let log = logByDayKey[day.dayKey]
+                    let rawSit = log?.sittingMs ?? 0
+                    let rawStand = log?.standingMs ?? 0
+                    let net = deskStore.daySummaryDisplayedPostures(
+                        dayKey: day.dayKey,
+                        rawSittingMs: rawSit,
+                        rawStandingMs: rawStand
+                    )
                     selectedDaySummary = WeekDaySummarySelection(
                         dayKey: day.dayKey,
                         badgeKind: day.kind,
-                        sittingMs: log?.sittingMs ?? 0,
-                        standingMs: log?.standingMs ?? 0,
+                        sittingMs: net.sitting,
+                        standingMs: net.standing,
+                        rawSittingMs: rawSit,
+                        rawStandingMs: rawStand,
                         goalMs: day.goalMsApplied
                     )
                 } label: {
@@ -133,8 +142,12 @@ private struct WeekDaySummarySelection: Identifiable {
     var id: String { dayKey }
     let dayKey: String
     let badgeKind: WorkweekBadgeKind
+    /// Sitting/standing times shown in the sheet (may omit time before the last desk-timer reset **today**).
     let sittingMs: Int
     let standingMs: Int
+    /// Full-day SwiftData totals — used for goal copy so it stays aligned with workweek badges.
+    let rawSittingMs: Int
+    let rawStandingMs: Int
     let goalMs: Int
 }
 
@@ -197,7 +210,7 @@ private struct WeekDayPostureSummarySheet: View {
     }
 
     private var goalCaption: String? {
-        let standing = selection.standingMs
+        let standingForGoal = selection.rawStandingMs
         let goalMs = selection.goalMs
         switch selection.badgeKind {
         case .future:
@@ -209,14 +222,14 @@ private struct WeekDayPostureSummarySheet: View {
             return nil
         case .partial:
             guard goalMs > 0 else { return nil }
-            let remain = max(0, goalMs - standing)
+            let remain = max(0, goalMs - standingForGoal)
             if remain > 0 {
                 return "\(formatDeskDuration(ms: remain)) to go for your standing goal."
             }
             return nil
         case .missed:
             guard goalMs > 0 else { return nil }
-            if standing == 0 {
+            if standingForGoal == 0 {
                 return "No standing time recorded for this day."
             }
             return "Below your standing goal for this day."

@@ -14,17 +14,17 @@ struct TimerVerticalFillBackground: View {
 
     var body: some View {
         GeometryReader { geo in
-            let h = max(
-                0,
-                min(geo.size.height * CGFloat(min(max(fraction, 0), 1)), geo.size.height)
-            )
+            let safeFrac = CGFloat(min(max(fraction, 0), 1))
+            let h = min(geo.size.height * safeFrac, geo.size.height)
 
             ZStack(alignment: .bottom) {
-                baseColor
+                Rectangle()
+                    .fill(baseColor)
+                    .frame(width: geo.size.width, height: geo.size.height)
 
                 Rectangle()
                     .fill(deepColor)
-                    .frame(height: h)
+                    .frame(width: geo.size.width, height: h)
                     .allowsHitTesting(false)
             }
             .animation(.smooth(duration: 0.42), value: fraction)

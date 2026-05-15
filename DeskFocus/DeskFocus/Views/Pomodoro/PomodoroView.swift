@@ -22,63 +22,36 @@ struct PomodoroView: View {
         PomodoroTheme.colors(for: store.phase)
     }
 
-    private var pomodoroPhaseTotalMs: Int {
-        switch store.phase {
-        case .pomodoro: return POMODORO_MS
-        case .shortBreak: return SHORT_BREAK_MS
-        case .longBreak: return LONG_BREAK_MS
-        }
-    }
-
-    private var pomodoroTimerSplit: (base: Color, deep: Color) {
-        PomodoroTheme.timerSplitColors(for: store.phase)
-    }
-
-    /// Advances as the phase countdown runs out (synonymous with 1 − time remaining).
-    private var pomodoroTimerFillFraction: CGFloat {
-        let total = Double(max(1, pomodoroPhaseTotalMs))
-        return CGFloat(1 - Double(store.remainingMs) / total)
-    }
-
     var body: some View {
-        ZStack {
-            TimerVerticalFillBackground(
-                fraction: pomodoroTimerFillFraction,
-                baseColor: pomodoroTimerSplit.base,
-                deepColor: pomodoroTimerSplit.deep
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    timerCard
+
+                    statusBlock
+
+                    tasksSection
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, keyboardOverlapHeight > 0 ? keyboardOverlapHeight + 28 : 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .simultaneousGesture(
+                TapGesture().onEnded { _ in UIApplication.deskFocusDismissKeyboard() }
             )
-            .ignoresSafeArea(edges: [.horizontal, .bottom])
-
-            ScrollViewReader { scrollProxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        timerCard
-
-                        statusBlock
-
-                        tasksSection
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, keyboardOverlapHeight > 0 ? keyboardOverlapHeight + 28 : 16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .scrollDismissesKeyboard(.interactively)
-                .simultaneousGesture(
-                    TapGesture().onEnded { _ in UIApplication.deskFocusDismissKeyboard() }
-                )
-                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
-                    keyboardOverlapHeight = Self.keyboardOverlapHeight(from: note)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                    keyboardOverlapHeight = 0
-                }
-                .onChange(of: addTaskFieldFocused) { _, focused in
-                    guard focused else { return }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                        withAnimation(.easeOut(duration: 0.34)) {
-                            scrollProxy.scrollTo("addTaskField", anchor: UnitPoint(x: 0.5, y: 0.82))
-                        }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+                keyboardOverlapHeight = Self.keyboardOverlapHeight(from: note)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                keyboardOverlapHeight = 0
+            }
+            .onChange(of: addTaskFieldFocused) { _, focused in
+                guard focused else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                    withAnimation(.easeOut(duration: 0.34)) {
+                        scrollProxy.scrollTo("addTaskField", anchor: UnitPoint(x: 0.5, y: 0.82))
                     }
                 }
             }

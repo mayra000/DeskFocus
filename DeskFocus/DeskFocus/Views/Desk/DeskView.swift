@@ -45,36 +45,27 @@ struct DeskView: View {
     }
 
     private var deskScrollStack: some View {
-        ZStack {
-            TimerVerticalFillBackground(
-                fraction: deskTimerFillFraction,
-                baseColor: DeskTheme.timerSplitBase(for: deskStore.posture),
-                deepColor: DeskTheme.timerSplitDeep(for: deskStore.posture)
-            )
-            .ignoresSafeArea(edges: [.horizontal, .bottom])
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                mainTimerCard
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    mainTimerCard
+                VStack(alignment: .leading, spacing: 56) {
+                    StandingWeekBadgesView()
+                    standingGoalSection
+                    // Wellness facts carousel hidden for a cleaner desk UI (see `deskWellnessFacts` / FactCarouselView if restoring).
+                    weeklySittingSection
 
-                    VStack(alignment: .leading, spacing: 56) {
-                        StandingWeekBadgesView()
-                        standingGoalSection
-                        // Wellness facts carousel hidden for a cleaner desk UI (see `deskWellnessFacts` / FactCarouselView if restoring).
-                        weeklySittingSection
-
-                        ActivityLogView()
-                        WeeklySummaryView()
-                    }
+                    ActivityLogView()
+                    WeeklySummaryView()
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 24)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .scrollDisabled(countdownFocusedDigit != nil)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .scrollDisabled(countdownFocusedDigit != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(edges: .bottom)
         .toolbar {
@@ -97,14 +88,6 @@ struct DeskView: View {
             commitCountdownField(field)
             countdownFocusedDigit = nil
         }
-    }
-
-    /// 0 → empty deeper fill at bottom; 1 → full bleed deep.
-    /// Today’s **logged** standing vs **current** standing goal. Uses the live goal (not frozen weekday snapshots), so e.g. 1h logged / 2h goal → half fill.
-    private var deskTimerFillFraction: CGFloat {
-        let stoodMs = deskStore.loggedStandingMsForCalendarDay(containing: deskStore.tickNow)
-        let goalMs = max(1, deskStore.standingGoalMs)
-        return CGFloat(min(1.0, Double(max(0, stoodMs)) / Double(goalMs)))
     }
 
     // MARK: - Main card

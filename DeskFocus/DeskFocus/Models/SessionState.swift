@@ -18,10 +18,13 @@ struct SessionState: Codable, Equatable {
     var countdownDurationMs: Int
     /// Clamped in store/UI: 5 min–8 hr, multiple of 5 min.
     var standingGoalMs: Int
-    /// Standing goal snapshots by `dayKey(for:)`; **today’s** entry is overwritten on each save so past weekdays keep the goal they had while that day was current.
+    /// Frozen goal snapshots by `dayKey(for:)`; **today’s** entry is overwritten on each save so past weekdays keep the goal they had while that day was current.
     var standingGoalSnapshotsByDayKey: [String: Int]
     /// True after the user starts a desk timer until explicit clear or countdown completion; keeps Live Activity during pause.
     var deskLiveActivityVisible: Bool
+    /// Posture-split ms for the **current** desk session (cleared with timer reset / countdown end); persists across backgrounding.
+    var deskSessionSittingMs: Int
+    var deskSessionStandingMs: Int
 
     static let storageKey = "desktimer:session"
 
@@ -37,7 +40,9 @@ struct SessionState: Codable, Equatable {
         countdownDurationMs: 30 * 60 * 1000,
         standingGoalMs: 60 * 60 * 1000,
         standingGoalSnapshotsByDayKey: [:],
-        deskLiveActivityVisible: false
+        deskLiveActivityVisible: false,
+        deskSessionSittingMs: 0,
+        deskSessionStandingMs: 0
     )
 
     enum CodingKeys: String, CodingKey {
@@ -53,6 +58,8 @@ struct SessionState: Codable, Equatable {
         case standingGoalMs
         case standingGoalSnapshotsByDayKey
         case deskLiveActivityVisible
+        case deskSessionSittingMs
+        case deskSessionStandingMs
     }
 
     init(
@@ -67,7 +74,9 @@ struct SessionState: Codable, Equatable {
         countdownDurationMs: Int,
         standingGoalMs: Int,
         standingGoalSnapshotsByDayKey: [String: Int],
-        deskLiveActivityVisible: Bool
+        deskLiveActivityVisible: Bool,
+        deskSessionSittingMs: Int,
+        deskSessionStandingMs: Int
     ) {
         self.posture = posture
         self.running = running
@@ -81,6 +90,8 @@ struct SessionState: Codable, Equatable {
         self.standingGoalMs = standingGoalMs
         self.standingGoalSnapshotsByDayKey = standingGoalSnapshotsByDayKey
         self.deskLiveActivityVisible = deskLiveActivityVisible
+        self.deskSessionSittingMs = deskSessionSittingMs
+        self.deskSessionStandingMs = deskSessionStandingMs
     }
 
     init(from decoder: Decoder) throws {
@@ -99,6 +110,8 @@ struct SessionState: Codable, Equatable {
             try c.decodeIfPresent([String: Int].self, forKey: .standingGoalSnapshotsByDayKey) ?? [:]
         deskLiveActivityVisible = try c.decodeIfPresent(Bool.self, forKey: .deskLiveActivityVisible)
             ?? (running || sessionPausedMs > 0)
+        deskSessionSittingMs = try c.decodeIfPresent(Int.self, forKey: .deskSessionSittingMs) ?? 0
+        deskSessionStandingMs = try c.decodeIfPresent(Int.self, forKey: .deskSessionStandingMs) ?? 0
     }
 
     func encode(to encoder: Encoder) throws {
@@ -115,5 +128,7 @@ struct SessionState: Codable, Equatable {
         try c.encode(standingGoalMs, forKey: .standingGoalMs)
         try c.encode(standingGoalSnapshotsByDayKey, forKey: .standingGoalSnapshotsByDayKey)
         try c.encode(deskLiveActivityVisible, forKey: .deskLiveActivityVisible)
+        try c.encode(deskSessionSittingMs, forKey: .deskSessionSittingMs)
+        try c.encode(deskSessionStandingMs, forKey: .deskSessionStandingMs)
     }
 }

@@ -31,8 +31,12 @@ final class DeskSessionStore {
     var weeklySittingMs: Int
     var weekKey: String
 
-    /// Drives Live Activity: true while the desk timer is running; cleared on pause / clear / countdown end.
+    /// Drives Live Activity: true while the desk timer is running; cleared on pause / clear / countdown completion.
     var deskLiveActivityVisible: Bool
+
+    /// Sitting/standing ms accumulated for the **current** desk session (same scope as the stopwatch); cleared when the timer progress is reset.
+    var deskSessionSittingMs: Int
+    var deskSessionStandingMs: Int
 
     /// Fired after each **continuous** standing segment accumulates `STANDING_CONFETTI_INTERVAL_MS` while the desk timer is running.
     var onStandingConfettiMilestone: (() -> Void)?
@@ -102,6 +106,8 @@ final class DeskSessionStore {
         weeklySittingMs = snapshot.weeklySittingMs
         weekKey = snapshot.weekKey
         deskLiveActivityVisible = snapshot.deskLiveActivityVisible
+        deskSessionSittingMs = snapshot.deskSessionSittingMs
+        deskSessionStandingMs = snapshot.deskSessionStandingMs
 
         if running {
             lastReconcileAt = runStartedAt ?? Date()
@@ -161,6 +167,41 @@ final class DeskSessionStore {
         persist()
     }
 
+    /// For **today** in stopwatch mode, sitting/standing lines match the main desk timer (`sessionElapsed` split by posture). Other days use full persisted logs.
+    func daySummaryDisplayedPostures(dayKey key: String, rawSittingMs: Int, rawStandingMs: Int) -> (sitting: Int, standing: Int) {
+        let todayKey = dayKey(for: tickNow)
+        guard key == todayKey, sessionDisplayMode == .stopwatch else {
+            return (rawSittingMs, rawStandingMs)
+        }
+
+        var sit = deskSessionSittingMs
+        var stand = deskSessionStandingMs
+
+        if running, let watermark = lastReconcileAt, watermark < tickNow {
+            let deltaMs = Int((tickNow.timeIntervalSince(watermark) * 1000.0).rounded())
+            if deltaMs > 0 {
+                if posture == .sitting {
+                    sit += deltaMs
+                } else {
+                    stand += deltaMs
+                }
+            }
+        }
+
+        let elapsed = computeSessionElapsed(at: tickNow)
+        let sum = sit + stand
+        if elapsed > sum + 1_250 {
+            let gap = elapsed - sum
+            if posture == .standing {
+                stand += gap
+            } else {
+                sit += gap
+            }
+        }
+
+        return (sit, stand)
+    }
+
     /// Clears countdown target to `0` only. Leaves shared desk timer elapsed (stopwatch accumulation) untouched.
     func clearCountdownTime() {
         guard sessionDisplayMode == .countdown else { return }
@@ -177,6 +218,8 @@ final class DeskSessionStore {
         standingConfettiAccumMs = 0
         sittingHourConfettiAccumMs = 0
         deskLiveActivityVisible = false
+        deskSessionSittingMs = 0
+        deskSessionStandingMs = 0
     }
 
     func switchPosture() {
@@ -296,6 +339,11 @@ final class DeskSessionStore {
             }
             dailyLogStore.addPostureDelta(from: watermark, to: now, posture: posture)
             addWeeklySittingMs(from: watermark, to: now)
+            if posture == .sitting {
+                deskSessionSittingMs += deltaMs
+            } else {
+                deskSessionStandingMs += deltaMs
+            }
             lastReconcileAt = now
         }
 
@@ -373,6 +421,8 @@ final class DeskSessionStore {
         runStartedAt = nil
         sessionPausedMs = 0
         deskLiveActivityVisible = false
+        deskSessionSittingMs = 0
+        deskSessionStandingMs = 0
 
         notificationScheduler.cancelAllDeskAlerts()
 
@@ -431,9 +481,27 @@ final class DeskSessionStore {
     }
 
     /// Standing time already written to SwiftData for the calendar day containing `reference`.
-    /// Used for desk fill; combine with `tickNow` / `standingGoalMs` so edits to today’s goal redraw the backdrop.
     func loggedStandingMsForCalendarDay(containing reference: Date) -> Int {
         dailyLogStore.todayLog(for: reference).standingMs
+    }
+
+    /// 0…1 vertical backdrop fill: **stopwatch** mode uses **current session** standing toward today’s goal (0 when the session timers are at 0). Other modes use today’s persisted log vs goal.
+    func standingBackdropFillFraction(at reference: Date) -> CGFloat {
+        let goalMs = max(1, standingGoalMs)
+        let log = dailyLogStore.todayLog(for: reference)
+        let key = log.dayKey
+
+        if sessionDisplayMode == .stopwatch, key == dayKey(for: tickNow) {
+            let net = daySummaryDisplayedPostures(
+                dayKey: key,
+                rawSittingMs: log.sittingMs,
+                rawStandingMs: log.standingMs
+            )
+            return CGFloat(min(1.0, Double(max(0, net.standing)) / Double(goalMs)))
+        }
+
+        let stoodLogged = log.standingMs
+        return CGFloat(min(1.0, Double(max(0, stoodLogged)) / Double(goalMs)))
     }
 
     // MARK: - Persistence
@@ -451,7 +519,9 @@ final class DeskSessionStore {
             countdownDurationMs: countdownDurationMs,
             standingGoalMs: standingGoalMs,
             standingGoalSnapshotsByDayKey: standingGoalSnapshotsByDayKey,
-            deskLiveActivityVisible: deskLiveActivityVisible
+            deskLiveActivityVisible: deskLiveActivityVisible,
+            deskSessionSittingMs: deskSessionSittingMs,
+            deskSessionStandingMs: deskSessionStandingMs
         )
     }
 
@@ -469,6 +539,8 @@ final class DeskSessionStore {
         weeklySittingMs = state.weeklySittingMs
         weekKey = state.weekKey
         deskLiveActivityVisible = state.deskLiveActivityVisible
+        deskSessionSittingMs = state.deskSessionSittingMs
+        deskSessionStandingMs = state.deskSessionStandingMs
         standingConfettiAccumMs = 0
         sittingHourConfettiAccumMs = 0
         ticker?.cancel()

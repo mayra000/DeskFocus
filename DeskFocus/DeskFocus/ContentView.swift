@@ -45,7 +45,7 @@ struct ContentView: View {
         PomodoroTheme.colors(for: pomodoroStore.phase)
     }
 
-    /// Matches the lighter band of each tab’s vertical progress background.
+    /// Matches the lighter band of each tab’s vertical progress background (header row).
     private var chromeBackdrop: Color {
         switch selectedMode {
         case .desk:
@@ -55,13 +55,50 @@ struct ContentView: View {
         }
     }
 
+    private var deskTimerFillFraction: CGFloat {
+        deskStore.standingBackdropFillFraction(at: deskStore.tickNow)
+    }
+
+    private var pomodoroPhaseTotalMs: Int {
+        switch pomodoroStore.phase {
+        case .pomodoro: return POMODORO_MS
+        case .shortBreak: return SHORT_BREAK_MS
+        case .longBreak: return LONG_BREAK_MS
+        }
+    }
+
+    /// Advances as the phase countdown runs out (synonymous with 1 − time remaining).
+    private var pomodoroTimerFillFraction: CGFloat {
+        let total = Double(max(1, pomodoroPhaseTotalMs))
+        return CGFloat(1 - Double(pomodoroStore.remainingMs) / total)
+    }
+
+    /// Full-screen rising fill behind headers, status bar, and home indicator (tab content sits on top).
+    private var sessionVerticalFill: some View {
+        Group {
+            switch selectedMode {
+            case .desk:
+                TimerVerticalFillBackground(
+                    fraction: deskTimerFillFraction,
+                    baseColor: DeskTheme.timerSplitBase(for: deskStore.posture),
+                    deepColor: DeskTheme.timerSplitDeep(for: deskStore.posture)
+                )
+            case .pomodoro:
+                TimerVerticalFillBackground(
+                    fraction: pomodoroTimerFillFraction,
+                    baseColor: PomodoroTheme.timerSplitColors(for: pomodoroStore.phase).base,
+                    deepColor: PomodoroTheme.timerSplitColors(for: pomodoroStore.phase).deep
+                )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
-                // TabView page layout often leaves an uncovered strip above the home indicator; paint behind it explicitly.
-                chromeBackdrop
-                    .ignoresSafeArea(edges: [.horizontal, .bottom])
-                    .allowsHitTesting(false)
+                sessionVerticalFill
+                    .ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     appHeader
