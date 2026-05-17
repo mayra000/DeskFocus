@@ -75,9 +75,16 @@ struct StandingWeekBadgesView: View {
         return VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .strokeBorder(circleStroke(for: day.kind), lineWidth: 1.5)
+                    .strokeBorder(circleStroke(for: day.kind), lineWidth: circleLineWidth(for: day.kind))
                     .background(Circle().fill(circleFill(for: day.kind)))
                     .frame(width: diameter, height: diameter)
+
+                if day.kind == .complete {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DeskTheme.primary)
+                        .accessibilityHidden(true)
+                }
 
                 if day.kind == .partial, day.goalMsApplied > 0 {
                     Circle()
@@ -108,12 +115,21 @@ struct StandingWeekBadgesView: View {
         }
     }
 
+    private func circleLineWidth(for kind: WorkweekBadgeKind) -> CGFloat {
+        switch kind {
+        case .complete:
+            return 3
+        default:
+            return 1.5
+        }
+    }
+
     private func circleStroke(for kind: WorkweekBadgeKind) -> Color {
         switch kind {
         case .future:
             return DeskTheme.border.opacity(0.65)
         case .complete:
-            return DeskTheme.primary.opacity(0.9)
+            return DeskTheme.primary
         case .partial:
             return DeskTheme.border
         case .missed:
