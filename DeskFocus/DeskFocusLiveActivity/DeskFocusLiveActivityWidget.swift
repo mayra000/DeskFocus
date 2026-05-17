@@ -92,6 +92,7 @@ private struct DeskLiveActivityLockScreenView: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .id(state.interactionEpoch)
 
                     Button(intent: ClearDeskSessionIntent()) {
                         Image(systemName: "xmark")

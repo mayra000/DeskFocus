@@ -174,6 +174,14 @@ private struct DeskFocusRootView: View {
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                         bootstrap.applyPendingLiveActivityCommands()
                     }
+                    .onReceive(
+                        NotificationCenter.default.publisher(for: Notification.Name.deskFocusLiveActivityIntentDidEnqueue)
+                    ) { _ in
+                        bootstrap.applyPendingLiveActivityCommands()
+                        guard scenePhase == .active else { return }
+                        bootstrap.liveActivity.noteSceneBecameActive(syncing: bootstrap.deskStore)
+                        bootstrap.pomodoroLiveActivity.noteSceneBecameActive(syncing: bootstrap.pomodoroStore)
+                    }
                 } else {
                     ProgressView()
                         .tint(.white)

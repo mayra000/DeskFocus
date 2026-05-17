@@ -25,6 +25,9 @@ final class DeskSessionLiveActivityManager {
 
     private var activity: Activity<DeskSessionActivityAttributes>?
     private var lastPushedState: DeskSessionActivityAttributes.ContentState?
+    private var deskLiveActivityInteractionEpoch: UInt32 = 0
+    /// Tracks `DeskSessionStore.running` so each start/pause bumps `ContentState.interactionEpoch` exactly once per transition.
+    private var lastDeskRunningTrackedForInteractionEpoch: Bool?
     private var sceneIsActive = false
     private var startTask: Task<Void, Never>?
     /// Superseded starter tasks can overlap `Activity.request`; only the newest nonce wins.
@@ -34,6 +37,7 @@ final class DeskSessionLiveActivityManager {
     func resetTrackedActivityAfterExternalTermination() {
         activity = nil
         lastPushedState = nil
+        lastDeskRunningTrackedForInteractionEpoch = nil
     }
 
     func noteSceneBecameActive(syncing store: DeskSessionStore) {
@@ -174,8 +178,20 @@ final class DeskSessionLiveActivityManager {
             isRunning: store.running,
             countdownDurationMs: store.countdownDurationMs,
             tickingWholeSeconds: tickingWholeSeconds,
+            interactionEpoch: deskLiveActivityInteractionEpochValue(for: store),
             islandCompactTime: islandCompact,
             islandExpandedTime: islandExpanded
         )
+    }
+
+    private func deskLiveActivityInteractionEpochValue(for store: DeskSessionStore) -> UInt32 {
+        if lastDeskRunningTrackedForInteractionEpoch != store.running {
+            lastDeskRunningTrackedForInteractionEpoch = store.running
+            deskLiveActivityInteractionEpoch &+= 1
+            if deskLiveActivityInteractionEpoch == 0 {
+                deskLiveActivityInteractionEpoch = 1
+            }
+        }
+        return deskLiveActivityInteractionEpoch
     }
 }

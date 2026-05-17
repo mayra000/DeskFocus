@@ -17,6 +17,9 @@ public struct DeskSessionActivityAttributes: ActivityAttributes {
         public var countdownDurationMs: Int
         /// Whole seconds of stopwatch elapsed or countdown **remaining**; bumps ~1 Hz while running and forces distinct `ContentState` hashes for ActivityKit.
         public var tickingWholeSeconds: Int
+        /// Bumps whenever the desk timer **starts / pauses** so ActivityKit reliably ships a distinct payload (lock-screen
+        /// control chrome can otherwise stay on the previous SF Symbol briefly).
+        public var interactionEpoch: UInt32
         /// Preformatted for Dynamic Island **compact** trailing (`Text` only — avoids broken `TimelineView` in Live Activities).
         public var islandCompactTime: String
         /// Preformatted for Dynamic Island expanded region / full clock style.
@@ -30,6 +33,7 @@ public struct DeskSessionActivityAttributes: ActivityAttributes {
             isRunning: Bool,
             countdownDurationMs: Int,
             tickingWholeSeconds: Int,
+            interactionEpoch: UInt32 = 0,
             islandCompactTime: String,
             islandExpandedTime: String
         ) {
@@ -40,6 +44,7 @@ public struct DeskSessionActivityAttributes: ActivityAttributes {
             self.isRunning = isRunning
             self.countdownDurationMs = countdownDurationMs
             self.tickingWholeSeconds = tickingWholeSeconds
+            self.interactionEpoch = interactionEpoch
             self.islandCompactTime = islandCompactTime
             self.islandExpandedTime = islandExpandedTime
         }
@@ -52,6 +57,7 @@ public struct DeskSessionActivityAttributes: ActivityAttributes {
             case isRunning
             case countdownDurationMs
             case tickingWholeSeconds
+            case interactionEpoch
             case islandCompactTime
             case islandExpandedTime
         }
@@ -65,6 +71,7 @@ public struct DeskSessionActivityAttributes: ActivityAttributes {
             isRunning = try c.decode(Bool.self, forKey: .isRunning)
             countdownDurationMs = try c.decode(Int.self, forKey: .countdownDurationMs)
             tickingWholeSeconds = try c.decodeIfPresent(Int.self, forKey: .tickingWholeSeconds) ?? 0
+            interactionEpoch = try c.decodeIfPresent(UInt32.self, forKey: .interactionEpoch) ?? 0
             islandCompactTime = try c.decodeIfPresent(String.self, forKey: .islandCompactTime) ?? ""
             islandExpandedTime = try c.decodeIfPresent(String.self, forKey: .islandExpandedTime) ?? ""
         }
@@ -78,6 +85,7 @@ public struct DeskSessionActivityAttributes: ActivityAttributes {
             try c.encode(isRunning, forKey: .isRunning)
             try c.encode(countdownDurationMs, forKey: .countdownDurationMs)
             try c.encode(tickingWholeSeconds, forKey: .tickingWholeSeconds)
+            try c.encode(interactionEpoch, forKey: .interactionEpoch)
             try c.encode(islandCompactTime, forKey: .islandCompactTime)
             try c.encode(islandExpandedTime, forKey: .islandExpandedTime)
         }

@@ -55,6 +55,7 @@ final class DeskFocusAppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        DeskLiveActivityCommandBridge.installHostDarwinNotifyObserverIfNeeded()
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleSceneDidDisconnect),
